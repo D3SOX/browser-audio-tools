@@ -1,6 +1,6 @@
 # Browser Audio Tools (Client-Side)
 
-A Bun + TypeScript + React app for quick, in-browser audio tweaks: add pink/white noise and concatenate it with a track, extract the embedded cover image, retag WAV into MP3, or convert between audio formats. **All processing runs entirely in your browser** via `ffmpeg.wasm` — no server uploads, no size limits.
+A Bun + TypeScript + React app for quick, in-browser audio tweaks: add pink/white noise and concatenate it with a track, extract the embedded cover image, retag WAV into MP3, fix up MP3 tags, or convert between audio formats. **All processing runs entirely in your browser** via `ffmpeg.wasm` — no server uploads, no size limits.
 
 For broader, non-audio conversions, I recommend the open-source VERT project: [vert.sh](https://vert.sh/) / [github.com/VERT-sh/VERT](https://github.com/VERT-sh/VERT). This app stays focused on audio-specific workflows.
 
@@ -43,11 +43,13 @@ This is a fully static site (no serverless functions needed):
   - Input: WAV, FLAC, AIFF, MP3, OGG, and more
   - Output: MP3, OGG, AAC (lossy) or WAV, FLAC, AIFF (lossless)
   - Configurable bitrate, sample rate, and channels
+- **Retag MP3**: Edit ID3v2 tags on existing MP3 files without re-encoding
 
 ## Use cases
 
 - **Noise + concat to dodge filters**: Add a short burst of pink/white noise up front to slightly change the fingerprint of a track. Useful when you already hold the rights but need to avoid automated takedowns on platforms like SoundCloud; keep it subtle so listeners barely notice.
 - **Retag WAV into MP3**: When you have a clean WAV render but metadata lives in another file (e.g., an MP3 grabbed via `yt-dlp` from SoundCloud/YouTube), load both: pick the WAV as the target and the MP3 as the metadata source. The tool copies title/artist/album/artwork into a 320kbps MP3 and you can tidy ID3 tags like properly putting it into the respective fields for Title/Artist/Album (optional) or removing superflous text like `[FREE DOWNLOAD]` for a cleaner library.
+- **Fix up MP3 tags**: Quickly edit ID3 tags on an existing MP3 — update metadata without re-encoding. Handy for cleaning up messy downloads or fixing typos in your music library.
 
 ## Frontend
 
