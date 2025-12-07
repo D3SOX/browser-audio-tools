@@ -1,6 +1,8 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";
 
+export type ProgressCallback = (progress: { percent: number }) => void;
+
 export type NoiseType = "white" | "pink";
 
 export interface NoiseOptions {
@@ -46,9 +48,44 @@ function cleanupFiles(ff: FFmpeg, names: string[]) {
   }
 }
 
+async function execWithProgress(
+  ff: FFmpeg,
+  args: string[],
+  onProgress?: ProgressCallback
+): Promise<void> {
+  let lastPercent = -1;
+
+  const handler = onProgress
+    ? ({ progress }: { progress: number }) => {
+        // Clamp to 0-99 (we'll set 100 on completion)
+        const percent = Math.max(0, Math.min(99, Math.round(progress * 100)));
+        // Only emit if changed to reduce re-renders
+        if (percent !== lastPercent) {
+          lastPercent = percent;
+          onProgress({ percent });
+        }
+      }
+    : undefined;
+
+  if (handler) {
+    ff.on("progress", handler);
+  }
+
+  try {
+    await ff.exec(args);
+    // Signal completion
+    onProgress?.({ percent: 100 });
+  } finally {
+    if (handler) {
+      ff.off("progress", handler);
+    }
+  }
+}
+
 export async function addNoiseAndConcat(
   input: Uint8Array,
-  options: NoiseOptions = {}
+  options: NoiseOptions = {},
+  onProgress?: ProgressCallback
 ): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
 
@@ -67,24 +104,28 @@ export async function addNoiseAndConcat(
       : "[0:a][1:a]concat=n=2:v=0:a=1[aout]";
 
   try {
-    await ff.exec([
-      "-f",
-      "lavfi",
-      "-i",
-      `anoisesrc=color=${noiseColor}:duration=${duration}:amplitude=${amplitude}`,
-      "-i",
-      inputName,
-      "-filter_complex",
-      filterComplex,
-      "-map",
-      "[aout]",
-      "-c:a",
-      "libmp3lame",
-      "-b:a",
-      bitrate,
-      "-y",
-      outputName,
-    ]);
+    await execWithProgress(
+      ff,
+      [
+        "-f",
+        "lavfi",
+        "-i",
+        `anoisesrc=color=${noiseColor}:duration=${duration}:amplitude=${amplitude}`,
+        "-i",
+        inputName,
+        "-filter_complex",
+        filterComplex,
+        "-map",
+        "[aout]",
+        "-c:a",
+        "libmp3lame",
+        "-b:a",
+        bitrate,
+        "-y",
+        outputName,
+      ],
+      onProgress
+    );
 
     const data = await ff.readFile(outputName);
     if (!(data instanceof Uint8Array)) {
@@ -104,7 +145,10 @@ export async function addNoiseAndConcat(
   }
 }
 
-export async function extractCover(input: Uint8Array): Promise<ProcessResult> {
+export async function extractCover(
+  input: Uint8Array,
+  onProgress?: ProgressCallback
+): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
 
   const inputName = "input.mp3";
@@ -113,7 +157,11 @@ export async function extractCover(input: Uint8Array): Promise<ProcessResult> {
   await ff.writeFile(inputName, input);
 
   try {
-    await ff.exec(["-i", inputName, "-an", "-vcodec", "copy", "-y", outputName]);
+    await execWithProgress(
+      ff,
+      ["-i", inputName, "-an", "-vcodec", "copy", "-y", outputName],
+      onProgress
+    );
     const data = await ff.readFile(outputName);
     if (!(data instanceof Uint8Array)) {
       throw new Error("Unexpected ffmpeg output");
@@ -137,7 +185,10 @@ export interface ID3Metadata {
   album: string;
 }
 
-export async function readMetadata(input: Uint8Array): Promise<ID3Metadata> {
+export async function readMetadata(
+  input: Uint8Array,
+  onProgress?: ProgressCallback
+): Promise<ID3Metadata> {
   const ff = await ensureFFmpegLoaded();
 
   const inputName = "meta_input.mp3";
@@ -146,7 +197,11 @@ export async function readMetadata(input: Uint8Array): Promise<ID3Metadata> {
   await ff.writeFile(inputName, input);
 
   try {
-    await ff.exec(["-i", inputName, "-f", "ffmetadata", "-y", outputName]);
+    await execWithProgress(
+      ff,
+      ["-i", inputName, "-f", "ffmetadata", "-y", outputName],
+      onProgress
+    );
     const data = await ff.readFile(outputName);
     const text =
       data instanceof Uint8Array ? new TextDecoder().decode(data) : (data as string);
@@ -202,7 +257,8 @@ export async function convertAudio(
   input: Uint8Array,
   inputFilename: string,
   options: GenericConvertOptions,
-  outputBaseName?: string
+  outputBaseName?: string,
+  onProgress?: ProgressCallback
 ): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
 
@@ -241,7 +297,7 @@ export async function convertAudio(
   args.push("-y", outName);
 
   try {
-    await ff.exec(args);
+    await execWithProgress(ff, args, onProgress);
     const data = await ff.readFile(outName);
     if (!(data instanceof Uint8Array)) {
       throw new Error("Unexpected ffmpeg output");
@@ -264,7 +320,8 @@ export async function convertWavToMp3WithMetadata(
   wavInput: Uint8Array,
   mp3Source: Uint8Array,
   options: ConvertOptions = {},
-  outputFilename?: string
+  outputFilename?: string,
+  onProgress?: ProgressCallback
 ): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
 
@@ -307,7 +364,7 @@ export async function convertWavToMp3WithMetadata(
   args.push("-y", outName);
 
   try {
-    await ff.exec(args);
+    await execWithProgress(ff, args, onProgress);
     const data = await ff.readFile(outName);
     if (!(data instanceof Uint8Array)) {
       throw new Error("Unexpected ffmpeg output");

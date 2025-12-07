@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { NoiseType, ProcessOptions, ID3Metadata, GenericConvertOptions, OutputFormat, SampleRate, Channels } from "./api";
+import type { NoiseType, ProcessOptions, ID3Metadata, GenericConvertOptions, OutputFormat, SampleRate, Channels, ProgressCallback } from "./api";
 import { extractCover, processAudio, readMetadataFromFile, convertWavToMp3, convertAudio } from "./api";
 import "./styles.css";
 
@@ -132,6 +132,9 @@ export default function App() {
   const [genericConvertOptions, setGenericConvertOptions] = useState<GenericConvertOptions>(defaultGenericConvertOptions);
   const [dragOverGeneric, setDragOverGeneric] = useState(false);
 
+  // Progress state
+  const [progress, setProgress] = useState<number | null>(null);
+
   const isLosslessFormat = LOSSLESS_FORMATS.includes(genericConvertOptions.format);
 
   const clearResults = useCallback(() => {
@@ -146,6 +149,7 @@ export default function App() {
     setDownloadName(null);
     setStatus(null);
     setError(null);
+    setProgress(null);
   }, []);
 
   const handleWavFileSelect = useCallback(
@@ -287,17 +291,20 @@ export default function App() {
     setProcessing(true);
     setError(null);
     setStatus("Processing...");
+    setProgress(0);
+
+    const onProgress: ProgressCallback = ({ percent }) => setProgress(percent);
 
     try {
       if (operation === "noise") {
-        const result = await processAudio(file!, options);
+        const result = await processAudio(file!, options, onProgress);
         const url = URL.createObjectURL(result.blob);
         setDownloadUrl(url);
         setDownloadName(result.filename);
         setPreviewUrl(url);
         setStatus("Noise added and concatenated. Ready to download.");
       } else if (operation === "cover") {
-        const result = await extractCover(file!);
+        const result = await extractCover(file!, onProgress);
         const url = URL.createObjectURL(result.blob);
         setDownloadUrl(url);
         setDownloadName(result.filename);
@@ -305,14 +312,14 @@ export default function App() {
         setStatus("Cover extracted. Ready to download.");
       } else if (operation === "convert") {
         const outputName = mp3SourceFile!.name.replace(/\.mp3$/i, "") + ".mp3";
-        const result = await convertWavToMp3(wavFile!, mp3SourceFile!, metadata, outputName);
+        const result = await convertWavToMp3(wavFile!, mp3SourceFile!, metadata, outputName, onProgress);
         const url = URL.createObjectURL(result.blob);
         setDownloadUrl(url);
         setDownloadName(outputName);
         setPreviewUrl(url);
         setStatus("WAV retagged into 320kbps MP3 with metadata. Ready to download.");
       } else if (operation === "generic-convert") {
-        const result = await convertAudio(genericConvertFile!, genericConvertOptions);
+        const result = await convertAudio(genericConvertFile!, genericConvertOptions, undefined, onProgress);
         const url = URL.createObjectURL(result.blob);
         setDownloadUrl(url);
         setDownloadName(result.filename);
@@ -328,6 +335,7 @@ export default function App() {
       setStatus(null);
     } finally {
       setProcessing(false);
+      setProgress(null);
     }
   };
 
@@ -890,6 +898,20 @@ export default function App() {
               >
                 Reset
               </button>
+              {processing && progress !== null && (
+                <div className="progress-inline">
+                  <div
+                    className="progress-bar"
+                    role="progressbar"
+                    aria-valuenow={progress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <div className="progress-fill" style={{ width: `${progress}%` }} />
+                  </div>
+                  <span className="progress-text">{progress}%</span>
+                </div>
+              )}
             </div>
 
             {status && <div className="status-message success">{status}</div>}
