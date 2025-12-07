@@ -24,19 +24,38 @@ const CORE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@${CORE_VERSI
 let ffmpeg: FFmpeg | null = null;
 let loadPromise: Promise<void> | null = null;
 
+function translateFFmpegLoadError(error: unknown): Error {
+  if (error instanceof Error) {
+    if (/Failed to fetch dynamically imported module/.test(error.message)) {
+      return new Error(
+        "FFmpeg failed to load. A content or privacy blocker may be blocking blob: scripts. Try disabling blockers for this site or use a different browser."
+      );
+    }
+    return error;
+  }
+  return new Error("Failed to load ffmpeg.wasm");
+}
+
 async function ensureFFmpegLoaded(): Promise<FFmpeg> {
   if (ffmpeg?.loaded) return ffmpeg;
 
   if (!loadPromise) {
     loadPromise = (async () => {
-      ffmpeg = new FFmpeg();
-      const coreURL = await toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.js`, "text/javascript");
-      const wasmURL = await toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.wasm`, "application/wasm");
-      const workerURL = await toBlobURL(
-        `${CORE_BASE_URL}/ffmpeg-core.worker.js`,
-        "text/javascript"
-      );
-      await ffmpeg.load({ coreURL, wasmURL, workerURL });})();
+      try {
+        ffmpeg = new FFmpeg();
+        const coreURL = await toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.js`, "text/javascript");
+        const wasmURL = await toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.wasm`, "application/wasm");
+        const workerURL = await toBlobURL(
+          `${CORE_BASE_URL}/ffmpeg-core.worker.js`,
+          "text/javascript"
+        );
+        await ffmpeg.load({ coreURL, wasmURL, workerURL });
+      } catch (error) {
+        ffmpeg = null;
+        loadPromise = null;
+        throw translateFFmpegLoadError(error);
+      }
+    })();
   }
   await loadPromise;
   return ffmpeg!;
