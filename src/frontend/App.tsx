@@ -45,6 +45,8 @@ type OperationResult = {
   downloadUrl: string | null;
   downloadName: string | null;
   previewUrl: string | null;
+  progress: number | null;
+  processing: boolean;
 };
 
 const createEmptyResult = (): OperationResult => ({
@@ -53,6 +55,8 @@ const createEmptyResult = (): OperationResult => ({
   downloadUrl: null,
   downloadName: null,
   previewUrl: null,
+  progress: null,
+  processing: false,
 });
 
 const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
@@ -129,6 +133,8 @@ export default function App() {
         setDownloadUrl(nextResult.downloadUrl);
         setDownloadName(nextResult.downloadName);
         setPreviewUrl(nextResult.previewUrl);
+        setProgress(nextResult.progress);
+        setProcessing(nextResult.processing);
       }
     },
     []
@@ -142,14 +148,14 @@ export default function App() {
   const handleOperationChange = useCallback(
     (nextOperation: Operation) => {
       setOperation(nextOperation);
-      setProcessing(false);
-      setProgress(null);
       const savedResult = resultsByOperation[nextOperation] ?? createEmptyResult();
       setStatus(savedResult.status);
       setError(savedResult.error);
       setDownloadUrl(savedResult.downloadUrl);
       setDownloadName(savedResult.downloadName);
       setPreviewUrl(savedResult.previewUrl);
+      setProgress(savedResult.progress);
+      setProcessing(savedResult.processing);
     },
     [resultsByOperation]
   );
@@ -367,9 +373,17 @@ export default function App() {
     replaceOperationResult(activeOperation, {
       ...createEmptyResult(),
       status: "Processing...",
+      progress: 0,
+      processing: true,
     });
 
-    const onProgress: ProgressCallback = ({ percent }) => setProgress(percent);
+    const onProgress: ProgressCallback = ({ percent }) => {
+      setProgress(percent);
+      setResultsByOperation((prev) => ({
+        ...prev,
+        [activeOperation]: { ...prev[activeOperation], progress: percent, processing: true },
+      }));
+    };
 
     try {
       if (activeOperation === "noise") {
@@ -381,6 +395,8 @@ export default function App() {
           downloadUrl: url,
           downloadName: result.filename,
           previewUrl: url,
+          progress: null,
+          processing: false,
         });
       } else if (activeOperation === "cover") {
         const result = await extractCover(file!, onProgress);
@@ -391,6 +407,8 @@ export default function App() {
           downloadUrl: url,
           downloadName: result.filename,
           previewUrl: url,
+          progress: null,
+          processing: false,
         });
       } else if (activeOperation === "convert") {
         const outputName = mp3SourceFile!.name.replace(/\.mp3$/i, "") + ".mp3";
@@ -402,6 +420,8 @@ export default function App() {
           downloadUrl: url,
           downloadName: outputName,
           previewUrl: url,
+          progress: null,
+          processing: false,
         });
       } else if (activeOperation === "generic-convert") {
         const result = await convertAudio(genericConvertFile!, genericConvertOptions, undefined, onProgress);
@@ -415,6 +435,8 @@ export default function App() {
           downloadUrl: url,
           downloadName: result.filename,
           previewUrl: url,
+          progress: null,
+          processing: false,
         });
       } else if (activeOperation === "retag") {
         const result = await retagMp3(retagFile!, retagMetadata, onProgress);
@@ -425,6 +447,8 @@ export default function App() {
           downloadUrl: url,
           downloadName: result.filename,
           previewUrl: url,
+          progress: null,
+          processing: false,
         });
       }
     } catch (err) {
@@ -434,9 +458,6 @@ export default function App() {
         ...createEmptyResult(),
         error: message,
       });
-    } finally {
-      setProcessing(false);
-      setProgress(null);
     }
   };
 
