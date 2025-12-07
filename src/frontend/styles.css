@@ -739,6 +739,15 @@ select {
   line-height: 1.5;
 }
 
+.footer-hint a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+}
+
+.footer-hint a:visited {
+  color: var(--text-secondary);
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 640px) {
   .radio-group {
