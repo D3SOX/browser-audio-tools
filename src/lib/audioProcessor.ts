@@ -1,0 +1,244 @@
+import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { toBlobURL } from "@ffmpeg/util";
+
+export type NoiseType = "white" | "pink";
+
+export interface NoiseOptions {
+  durationSeconds?: number;
+  noiseVolume?: number;
+  noiseType?: NoiseType;
+  bitrate?: string;
+}
+
+export interface ProcessResult {
+  data: Uint8Array;
+  filename: string;
+  mime: string;
+}
+
+const CORE_VERSION = "0.12.10";
+const CORE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/esm`;
+
+let ffmpeg: FFmpeg | null = null;
+let loadPromise: Promise<void> | null = null;
+
+async function ensureFFmpegLoaded(): Promise<FFmpeg> {
+  if (ffmpeg?.loaded) return ffmpeg;
+
+  if (!loadPromise) {
+    loadPromise = (async () => {
+      ffmpeg = new FFmpeg();
+      const coreURL = await toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.js`, "text/javascript");
+      const wasmURL = await toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.wasm`, "application/wasm");
+      await ffmpeg.load({ coreURL, wasmURL });})();
+  }
+  await loadPromise;
+  return ffmpeg!;
+}
+
+function cleanupFiles(ff: FFmpeg, names: string[]) {
+  for (const name of names) {
+    try {
+      ff.deleteFile(name);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export async function addNoiseAndConcat(
+  input: Uint8Array,
+  options: NoiseOptions = {}
+): Promise<ProcessResult> {
+  const ff = await ensureFFmpegLoaded();
+
+  const inputName = "input.mp3";
+  const outputName = "output.mp3";
+  const noiseColor: NoiseType = options.noiseType ?? "pink";
+  const duration = Math.max(1, options.durationSeconds ?? 180);
+  const amplitude = options.noiseVolume ?? 0.05;
+  const bitrate = options.bitrate ?? "192k";
+
+  await ff.writeFile(inputName, input);
+
+  const filterComplex =
+    noiseColor === "pink"
+      ? "[0:a]highpass=f=20,lowpass=f=4000[n];[n][1:a]concat=n=2:v=0:a=1[aout]"
+      : "[0:a][1:a]concat=n=2:v=0:a=1[aout]";
+
+  try {
+    await ff.exec([
+      "-f",
+      "lavfi",
+      "-i",
+      `anoisesrc=color=${noiseColor}:duration=${duration}:amplitude=${amplitude}`,
+      "-i",
+      inputName,
+      "-filter_complex",
+      filterComplex,
+      "-map",
+      "[aout]",
+      "-c:a",
+      "libmp3lame",
+      "-b:a",
+      bitrate,
+      "-y",
+      outputName,
+    ]);
+
+    const data = await ff.readFile(outputName);
+    if (!(data instanceof Uint8Array)) {
+      throw new Error("Unexpected ffmpeg output");
+    }
+    return {
+      data,
+      filename: outputName,
+      mime: "audio/mpeg",
+    };
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to process audio with ffmpeg.wasm"
+    );
+  } finally {
+    cleanupFiles(ff, [inputName, outputName]);
+  }
+}
+
+export async function extractCover(input: Uint8Array): Promise<ProcessResult> {
+  const ff = await ensureFFmpegLoaded();
+
+  const inputName = "input.mp3";
+  const outputName = "cover.jpg";
+
+  await ff.writeFile(inputName, input);
+
+  try {
+    await ff.exec(["-i", inputName, "-an", "-vcodec", "copy", "-y", outputName]);
+    const data = await ff.readFile(outputName);
+    if (!(data instanceof Uint8Array)) {
+      throw new Error("Unexpected ffmpeg output");
+    }
+
+    return {
+      data,
+      filename: outputName,
+      mime: "image/jpeg",
+    };
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : "Failed to extract cover image");
+  } finally {
+    cleanupFiles(ff, [inputName, outputName]);
+  }
+}
+
+export interface ID3Metadata {
+  title: string;
+  artist: string;
+  album: string;
+}
+
+export async function readMetadata(input: Uint8Array): Promise<ID3Metadata> {
+  const ff = await ensureFFmpegLoaded();
+
+  const inputName = "meta_input.mp3";
+  const outputName = "metadata.txt";
+
+  await ff.writeFile(inputName, input);
+
+  try {
+    await ff.exec(["-i", inputName, "-f", "ffmetadata", "-y", outputName]);
+    const data = await ff.readFile(outputName);
+    const text =
+      data instanceof Uint8Array ? new TextDecoder().decode(data) : (data as string);
+
+    const metadata: ID3Metadata = { title: "", artist: "", album: "" };
+
+    for (const line of text.split("\n")) {
+      const eqIndex = line.indexOf("=");
+      if (eqIndex === -1) continue;
+      const key = line.slice(0, eqIndex).toLowerCase().trim();
+      const value = line.slice(eqIndex + 1).trim();
+      if (key === "title") metadata.title = value;
+      else if (key === "artist") metadata.artist = value;
+      else if (key === "album") metadata.album = value;
+    }
+
+    return metadata;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : "Failed to read metadata");
+  } finally {
+    cleanupFiles(ff, [inputName, outputName]);
+  }
+}
+
+export interface ConvertOptions {
+  title?: string;
+  artist?: string;
+  album?: string;
+}
+
+export async function convertWavToMp3WithMetadata(
+  wavInput: Uint8Array,
+  mp3Source: Uint8Array,
+  options: ConvertOptions = {},
+  outputFilename?: string
+): Promise<ProcessResult> {
+  const ff = await ensureFFmpegLoaded();
+
+  const wavName = "input.wav";
+  const mp3Name = "source.mp3";
+  const outName = outputFilename ?? "output.mp3";
+
+  await ff.writeFile(wavName, wavInput);
+  await ff.writeFile(mp3Name, mp3Source);
+
+  const args = [
+    "-i",
+    wavName,
+    "-i",
+    mp3Name,
+    "-map",
+    "0:a",
+    "-map",
+    "1:v?",
+    "-c:a",
+    "libmp3lame",
+    "-b:a",
+    "320k",
+    "-id3v2_version",
+    "3",
+    "-map_metadata",
+    "1",
+  ];
+
+  if (options.title !== undefined) {
+    args.push("-metadata", `title=${options.title}`);
+  }
+  if (options.artist !== undefined) {
+    args.push("-metadata", `artist=${options.artist}`);
+  }
+  if (options.album !== undefined) {
+    args.push("-metadata", `album=${options.album}`);
+  }
+
+  args.push("-y", outName);
+
+  try {
+    await ff.exec(args);
+    const data = await ff.readFile(outName);
+    if (!(data instanceof Uint8Array)) {
+      throw new Error("Unexpected ffmpeg output");
+    }
+    return {
+      data,
+      filename: outName,
+      mime: "audio/mpeg",
+    };
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to convert WAV to MP3"
+    );
+  } finally {
+    cleanupFiles(ff, [wavName, mp3Name, outName]);
+  }
+}
