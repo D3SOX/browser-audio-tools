@@ -183,6 +183,8 @@ export interface ID3Metadata {
   title: string;
   artist: string;
   album: string;
+  year?: string;
+  track?: string;
 }
 
 export async function readMetadata(
@@ -206,7 +208,7 @@ export async function readMetadata(
     const text =
       data instanceof Uint8Array ? new TextDecoder().decode(data) : (data as string);
 
-    const metadata: ID3Metadata = { title: "", artist: "", album: "" };
+    const metadata: ID3Metadata = { title: "", artist: "", album: "", year: "", track: "" };
 
     for (const line of text.split("\n")) {
       const eqIndex = line.indexOf("=");
@@ -216,6 +218,8 @@ export async function readMetadata(
       if (key === "title") metadata.title = value;
       else if (key === "artist") metadata.artist = value;
       else if (key === "album") metadata.album = value;
+      else if (key === "date" || key === "year") metadata.year = value;
+      else if (key === "track") metadata.track = value;
     }
 
     return metadata;
@@ -226,10 +230,74 @@ export async function readMetadata(
   }
 }
 
+export async function retagMp3(
+  input: Uint8Array,
+  metadata: ID3Metadata,
+  outputFilename?: string,
+  onProgress?: ProgressCallback
+): Promise<ProcessResult> {
+  const ff = await ensureFFmpegLoaded();
+
+  const inputName = "input.mp3";
+  const outName = outputFilename ?? "output.mp3";
+
+  await ff.writeFile(inputName, input);
+
+  const args = [
+    "-i",
+    inputName,
+    "-c",
+    "copy",
+    "-id3v2_version",
+    "3",
+    "-map_metadata",
+    "-1", // Clear existing metadata
+  ];
+
+  if (metadata.title) {
+    args.push("-metadata", `title=${metadata.title}`);
+  }
+  if (metadata.artist) {
+    args.push("-metadata", `artist=${metadata.artist}`);
+  }
+  if (metadata.album) {
+    args.push("-metadata", `album=${metadata.album}`);
+  }
+  if (metadata.year) {
+    args.push("-metadata", `date=${metadata.year}`);
+  }
+  if (metadata.track) {
+    args.push("-metadata", `track=${metadata.track}`);
+  }
+
+  args.push("-y", outName);
+
+  try {
+    await execWithProgress(ff, args, onProgress);
+    const data = await ff.readFile(outName);
+    if (!(data instanceof Uint8Array)) {
+      throw new Error("Unexpected ffmpeg output");
+    }
+    return {
+      data,
+      filename: outName,
+      mime: "audio/mpeg",
+    };
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to retag MP3"
+    );
+  } finally {
+    cleanupFiles(ff, [inputName, outName]);
+  }
+}
+
 export interface ConvertOptions {
   title?: string;
   artist?: string;
   album?: string;
+  year?: string;
+  track?: string;
 }
 
 // Generic converter types
@@ -359,6 +427,12 @@ export async function convertWavToMp3WithMetadata(
   }
   if (options.album !== undefined) {
     args.push("-metadata", `album=${options.album}`);
+  }
+  if (options.year !== undefined) {
+    args.push("-metadata", `date=${options.year}`);
+  }
+  if (options.track !== undefined) {
+    args.push("-metadata", `track=${options.track}`);
   }
 
   args.push("-y", outName);

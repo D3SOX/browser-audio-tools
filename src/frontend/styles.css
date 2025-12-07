@@ -446,7 +446,7 @@ body {
 /* ===== Radio Card Group ===== */
 .radio-group {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.75rem;
 }
 
@@ -541,6 +541,13 @@ body {
   font-weight: 500;
   color: var(--text-muted);
   margin-left: 0.5rem;
+}
+
+.optional-label {
+  font-weight: 400;
+  color: var(--text-hint);
+  font-size: 0.8rem;
+  margin-left: 0.25rem;
 }
 
 input[type="number"],
@@ -874,10 +881,16 @@ select:disabled {
 /* ===== Responsive ===== */
 @media (max-width: 640px) {
   .radio-group {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .convert-files-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 400px) {
+  .radio-group {
     grid-template-columns: 1fr;
   }
 }

@@ -4,6 +4,7 @@ import {
   readMetadata as readMetadataLib,
   convertWavToMp3WithMetadata as convertWavLib,
   convertAudio as convertAudioLib,
+  retagMp3 as retagMp3Lib,
   type NoiseOptions,
   type ID3Metadata,
   type ConvertOptions,
@@ -99,6 +100,22 @@ export async function convertAudio(
 ): Promise<ApiResult> {
   const input = new Uint8Array(await file.arrayBuffer());
   const result = await convertAudioLib(input, file.name, options, outputBaseName, onProgress);
+
+  return {
+    blob: new Blob([result.data], { type: result.mime }),
+    filename: result.filename,
+    contentType: result.mime,
+  };
+}
+
+export async function retagMp3(
+  file: File,
+  metadata: ID3Metadata,
+  onProgress?: ProgressCallback
+): Promise<ApiResult> {
+  const input = new Uint8Array(await file.arrayBuffer());
+  const outputFilename = file.name.replace(/\.mp3$/i, "") + "_retagged.mp3";
+  const result = await retagMp3Lib(input, metadata, outputFilename, onProgress);
 
   return {
     blob: new Blob([result.data], { type: result.mime }),

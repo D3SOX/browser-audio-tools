@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { NoiseType, ProcessOptions, ID3Metadata, GenericConvertOptions, OutputFormat, SampleRate, Channels, ProgressCallback } from "./api";
-import { extractCover, processAudio, readMetadataFromFile, convertWavToMp3, convertAudio } from "./api";
+import { extractCover, processAudio, readMetadataFromFile, convertWavToMp3, convertAudio, retagMp3 } from "./api";
 import "./styles.css";
 
-type Operation = "noise" | "cover" | "convert" | "generic-convert";
+type Operation = "noise" | "cover" | "convert" | "generic-convert" | "retag";
 type Theme = "light" | "dark" | "system";
 
 const defaultMetadata: ID3Metadata = {
   title: "",
   artist: "",
   album: "",
+  year: "",
+  track: "",
 };
 
 const defaultOptions: ProcessOptions = {
@@ -132,6 +134,12 @@ export default function App() {
   const [genericConvertOptions, setGenericConvertOptions] = useState<GenericConvertOptions>(defaultGenericConvertOptions);
   const [dragOverGeneric, setDragOverGeneric] = useState(false);
 
+  // Retag MP3 state
+  const [retagFile, setRetagFile] = useState<File | null>(null);
+  const [retagMetadata, setRetagMetadata] = useState<ID3Metadata>(defaultMetadata);
+  const [loadingRetagMetadata, setLoadingRetagMetadata] = useState(false);
+  const [dragOverRetag, setDragOverRetag] = useState(false);
+
   // Progress state
   const [progress, setProgress] = useState<number | null>(null);
 
@@ -234,6 +242,44 @@ export default function App() {
     setGenericConvertOptions((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleRetagFileSelect = useCallback(
+    async (nextFile: File | null) => {
+      setRetagFile(nextFile);
+      clearResults();
+      if (nextFile) {
+        setLoadingRetagMetadata(true);
+        try {
+          const meta = await readMetadataFromFile(nextFile);
+          setRetagMetadata(meta);
+        } catch (err) {
+          console.error("Failed to read metadata:", err);
+          setRetagMetadata(defaultMetadata);
+        } finally {
+          setLoadingRetagMetadata(false);
+        }
+      } else {
+        setRetagMetadata(defaultMetadata);
+      }
+    },
+    [clearResults]
+  );
+
+  const handleRetagDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOverRetag(false);
+      const droppedFile = e.dataTransfer.files?.[0];
+      if (droppedFile && (droppedFile.type === "audio/mpeg" || droppedFile.name.endsWith(".mp3"))) {
+        handleRetagFileSelect(droppedFile);
+      }
+    },
+    [handleRetagFileSelect]
+  );
+
+  const updateRetagMetadata = <K extends keyof ID3Metadata>(key: K, value: ID3Metadata[K]) => {
+    setRetagMetadata((prev) => ({ ...prev, [key]: value }));
+  };
+
   const handleFileSelect = useCallback(
     (nextFile: File | null) => {
       setFile(nextFile);
@@ -283,6 +329,11 @@ export default function App() {
         setError("Please choose an audio file to convert.");
         return;
       }
+    } else if (operation === "retag") {
+      if (!retagFile) {
+        setError("Please choose an MP3 file to retag.");
+        return;
+      }
     } else if (!file) {
       setError("Please choose an audio file.");
       return;
@@ -328,6 +379,13 @@ export default function App() {
         const isLosslessFormat = LOSSLESS_FORMATS.includes(genericConvertOptions.format);
         const bitrateInfo = isLosslessFormat ? "lossless" : genericConvertOptions.bitrate;
         setStatus(`Converted to ${formatLabel} (${bitrateInfo}). Ready to download.`);
+      } else if (operation === "retag") {
+        const result = await retagMp3(retagFile!, retagMetadata, onProgress);
+        const url = URL.createObjectURL(result.blob);
+        setDownloadUrl(url);
+        setDownloadName(result.filename);
+        setPreviewUrl(url);
+        setStatus("MP3 retagged with new metadata. Ready to download.");
       }
     } catch (err) {
       console.error(err);
@@ -443,11 +501,27 @@ export default function App() {
                 </div>
                 <span className="radio-card-label">Convert Audio</span>
               </label>
+              <label className={`radio-card ${operation === "retag" ? "selected" : ""}`}>
+                <input
+                  type="radio"
+                  name="operation"
+                  value="retag"
+                  checked={operation === "retag"}
+                  onChange={() => setOperation("retag")}
+                />
+                <div className="radio-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                    <line x1="7" y1="7" x2="7.01" y2="7" />
+                  </svg>
+                </div>
+                <span className="radio-card-label">Retag MP3</span>
+              </label>
             </div>
           </section>
 
           {/* File Picker - only for noise/cover operations */}
-          {operation !== "convert" && operation !== "generic-convert" && (
+          {operation !== "convert" && operation !== "generic-convert" && operation !== "retag" && (
             <section className="section">
               <h2 className="section-title">
                 <span className="step-number">2</span>
@@ -641,14 +715,34 @@ export default function App() {
                       placeholder="Artist name"
                     />
                   </div>
-                  <div className="input-group input-group-full">
-                    <label htmlFor="metaAlbum">Album</label>
+                  <div className="input-group">
+                    <label htmlFor="metaAlbum">Album <span className="optional-label">(optional)</span></label>
                     <input
                       id="metaAlbum"
                       type="text"
                       value={metadata.album}
                       onChange={(e) => updateMetadata("album", e.target.value)}
                       placeholder="Album name"
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="metaYear">Year <span className="optional-label">(optional)</span></label>
+                    <input
+                      id="metaYear"
+                      type="text"
+                      value={metadata.year ?? ""}
+                      onChange={(e) => updateMetadata("year", e.target.value)}
+                      placeholder="e.g. 2024"
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="metaTrack">Track # <span className="optional-label">(optional)</span></label>
+                    <input
+                      id="metaTrack"
+                      type="text"
+                      value={metadata.track ?? ""}
+                      onChange={(e) => updateMetadata("track", e.target.value)}
+                      placeholder="e.g. 1"
                     />
                   </div>
                 </div>
@@ -795,6 +889,128 @@ export default function App() {
             </>
           )}
 
+          {/* Retag MP3 Section */}
+          {operation === "retag" && (
+            <>
+              <section className="section">
+                <h2 className="section-title">
+                  <span className="step-number">2</span>
+                  Choose an MP3 file
+                </h2>
+                <div
+                  className={`file-dropzone ${dragOverRetag ? "drag-over" : ""} ${retagFile ? "has-file" : ""}`}
+                  onDrop={handleRetagDrop}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverRetag(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    setDragOverRetag(false);
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept=".mp3,audio/mpeg"
+                    onChange={(e) => handleRetagFileSelect(e.target.files?.[0] ?? null)}
+                    className="file-input-hidden"
+                    id="retag-input"
+                  />
+                  <label htmlFor="retag-input" className="file-dropzone-label">
+                    <div className="file-icon">
+                      {retagFile ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M9 12l2 2 4-4" />
+                          <circle cx="12" cy="12" r="10" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17,8 12,3 7,8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="file-text">
+                      {retagFile ? (
+                        <>
+                          <span className="file-name">{retagFile.name}</span>
+                          <span className="file-size">{formatSize(retagFile.size)}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="file-cta">Click to browse or drag & drop</span>
+                          <span className="file-hint">MP3 files only</span>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              </section>
+
+              <section className="section">
+                <h2 className="section-title">
+                  <span className="step-number">3</span>
+                  Edit metadata
+                  {loadingRetagMetadata && <span className="loading-text"> (loading...)</span>}
+                </h2>
+                <div className="options-grid">
+                  <div className="input-group">
+                    <label htmlFor="retagTitle">Title</label>
+                    <input
+                      id="retagTitle"
+                      type="text"
+                      value={retagMetadata.title}
+                      onChange={(e) => updateRetagMetadata("title", e.target.value)}
+                      placeholder="Track title"
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="retagArtist">Artist</label>
+                    <input
+                      id="retagArtist"
+                      type="text"
+                      value={retagMetadata.artist}
+                      onChange={(e) => updateRetagMetadata("artist", e.target.value)}
+                      placeholder="Artist name"
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="retagAlbum">Album <span className="optional-label">(optional)</span></label>
+                    <input
+                      id="retagAlbum"
+                      type="text"
+                      value={retagMetadata.album}
+                      onChange={(e) => updateRetagMetadata("album", e.target.value)}
+                      placeholder="Album name"
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="retagYear">Year <span className="optional-label">(optional)</span></label>
+                    <input
+                      id="retagYear"
+                      type="text"
+                      value={retagMetadata.year ?? ""}
+                      onChange={(e) => updateRetagMetadata("year", e.target.value)}
+                      placeholder="e.g. 2024"
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="retagTrack">Track # <span className="optional-label">(optional)</span></label>
+                    <input
+                      id="retagTrack"
+                      type="text"
+                      value={retagMetadata.track ?? ""}
+                      onChange={(e) => updateRetagMetadata("track", e.target.value)}
+                      placeholder="e.g. 1"
+                    />
+                  </div>
+                </div>
+                <p className="hint">Existing metadata is prefilled from the file. Edit fields and retag.</p>
+              </section>
+            </>
+          )}
+
           {/* Options */}
           {operation === "noise" && (
             <section className="section">
@@ -866,7 +1082,7 @@ export default function App() {
               Run
             </h2>
             <div className="actions">
-              <button className="btn btn-primary" onClick={submit} disabled={processing || loadingMetadata}>
+              <button className="btn btn-primary" onClick={submit} disabled={processing || loadingMetadata || loadingRetagMetadata}>
                 {processing ? (
                   <>
                     <span className="spinner" />
@@ -878,6 +1094,8 @@ export default function App() {
                   "Extract cover"
                 ) : operation === "convert" ? (
                   "Convert to MP3"
+                ) : operation === "retag" ? (
+                  "Retag MP3"
                 ) : (
                   `Convert to ${genericConvertOptions.format.toUpperCase()}`
                 )}
@@ -892,6 +1110,8 @@ export default function App() {
                   setOptions(defaultOptions);
                   setGenericConvertFile(null);
                   setGenericConvertOptions(defaultGenericConvertOptions);
+                  setRetagFile(null);
+                  setRetagMetadata(defaultMetadata);
                   clearResults();
                 }}
                 disabled={processing}
