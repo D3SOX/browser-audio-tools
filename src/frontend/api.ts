@@ -3,13 +3,18 @@ import {
   extractCover as extractCoverLib,
   readMetadata as readMetadataLib,
   convertWavToMp3WithMetadata as convertWavLib,
+  convertAudio as convertAudioLib,
   type NoiseOptions,
   type ID3Metadata,
   type ConvertOptions,
+  type GenericConvertOptions,
+  type OutputFormat,
+  type SampleRate,
+  type Channels,
 } from "../lib/audioProcessor";
 
 export type NoiseType = "white" | "pink";
-export type { ID3Metadata, ConvertOptions };
+export type { ID3Metadata, ConvertOptions, GenericConvertOptions, OutputFormat, SampleRate, Channels };
 
 export interface ProcessOptions {
   durationSeconds: number;
@@ -69,6 +74,21 @@ export async function convertWavToMp3(
   const mp3Source = new Uint8Array(await mp3SourceFile.arrayBuffer());
 
   const result = await convertWavLib(wavInput, mp3Source, options, outputFilename);
+
+  return {
+    blob: new Blob([result.data], { type: result.mime }),
+    filename: result.filename,
+    contentType: result.mime,
+  };
+}
+
+export async function convertAudio(
+  file: File,
+  options: GenericConvertOptions,
+  outputBaseName?: string
+): Promise<ApiResult> {
+  const input = new Uint8Array(await file.arrayBuffer());
+  const result = await convertAudioLib(input, file.name, options, outputBaseName);
 
   return {
     blob: new Blob([result.data], { type: result.mime }),

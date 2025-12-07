@@ -1,6 +1,6 @@
 # Browser Audio Tools (Client-Side)
 
-A Bun + TypeScript + React app for quick, in-browser audio tweaks: add pink/white noise and concatenate it with a track, extract the embedded cover image, or retag WAV into MP3. **All processing runs entirely in your browser** via `ffmpeg.wasm` — no server uploads, no size limits.
+A Bun + TypeScript + React app for quick, in-browser audio tweaks: add pink/white noise and concatenate it with a track, extract the embedded cover image, retag WAV into MP3, or convert between audio formats. **All processing runs entirely in your browser** via `ffmpeg.wasm` — no server uploads, no size limits.
 
 ## Setup
 
@@ -37,6 +37,10 @@ This is a fully static site (no serverless functions needed):
   - Output bitrate selection
 - **Extract Cover**: Pulls the embedded album art as JPEG (if present)
 - **Retag WAV into MP3**: Copy tags/artwork from an MP3 source onto a WAV render, output 320kbps MP3
+- **Convert Audio**: Convert between audio formats with advanced options
+  - Input: WAV, FLAC, AIFF, MP3, OGG, and more
+  - Output: MP3, OGG, AAC (lossy) or WAV, FLAC, AIFF (lossless)
+  - Configurable bitrate, sample rate, and channels
 
 ## Frontend
 

@@ -177,6 +177,89 @@ export interface ConvertOptions {
   album?: string;
 }
 
+// Generic converter types
+export type OutputFormat = "mp3" | "ogg" | "aac" | "wav" | "flac" | "aiff";
+export type SampleRate = 44100 | 48000 | 96000;
+export type Channels = 1 | 2;
+
+export interface GenericConvertOptions {
+  format: OutputFormat;
+  bitrate: string; // e.g., "128k", "192k", "320k" (ignored for lossless)
+  sampleRate: SampleRate;
+  channels: Channels;
+}
+
+const FORMAT_CONFIG: Record<OutputFormat, { codec: string; ext: string; mime: string; lossless: boolean }> = {
+  mp3: { codec: "libmp3lame", ext: "mp3", mime: "audio/mpeg", lossless: false },
+  ogg: { codec: "libvorbis", ext: "ogg", mime: "audio/ogg", lossless: false },
+  aac: { codec: "aac", ext: "m4a", mime: "audio/mp4", lossless: false },
+  wav: { codec: "pcm_s16le", ext: "wav", mime: "audio/wav", lossless: true },
+  flac: { codec: "flac", ext: "flac", mime: "audio/flac", lossless: true },
+  aiff: { codec: "pcm_s16be", ext: "aiff", mime: "audio/aiff", lossless: true },
+};
+
+export async function convertAudio(
+  input: Uint8Array,
+  inputFilename: string,
+  options: GenericConvertOptions,
+  outputBaseName?: string
+): Promise<ProcessResult> {
+  const ff = await ensureFFmpegLoaded();
+
+  const config = FORMAT_CONFIG[options.format];
+  const inputExt = inputFilename.split(".").pop()?.toLowerCase() ?? "wav";
+  const inputName = `input.${inputExt}`;
+  const baseName = outputBaseName ?? inputFilename.replace(/\.[^.]+$/, "");
+  const outName = `${baseName}.${config.ext}`;
+
+  await ff.writeFile(inputName, input);
+
+  const args = [
+    "-i",
+    inputName,
+    "-c:a",
+    config.codec,
+  ];
+
+  // Only add bitrate for lossy formats
+  if (!config.lossless) {
+    args.push("-b:a", options.bitrate);
+  }
+
+  args.push(
+    "-ar",
+    String(options.sampleRate),
+    "-ac",
+    String(options.channels),
+  );
+
+  // AAC needs special container handling
+  if (options.format === "aac") {
+    args.push("-f", "ipod"); // M4A container
+  }
+
+  args.push("-y", outName);
+
+  try {
+    await ff.exec(args);
+    const data = await ff.readFile(outName);
+    if (!(data instanceof Uint8Array)) {
+      throw new Error("Unexpected ffmpeg output");
+    }
+    return {
+      data,
+      filename: outName,
+      mime: config.mime,
+    };
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to convert audio"
+    );
+  } finally {
+    cleanupFiles(ff, [inputName, outName]);
+  }
+}
+
 export async function convertWavToMp3WithMetadata(
   wavInput: Uint8Array,
   mp3Source: Uint8Array,

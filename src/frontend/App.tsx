@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { NoiseType, ProcessOptions, ID3Metadata } from "./api";
-import { extractCover, processAudio, readMetadataFromFile, convertWavToMp3 } from "./api";
+import type { NoiseType, ProcessOptions, ID3Metadata, GenericConvertOptions, OutputFormat, SampleRate, Channels } from "./api";
+import { extractCover, processAudio, readMetadataFromFile, convertWavToMp3, convertAudio } from "./api";
 import "./styles.css";
 
-type Operation = "noise" | "cover" | "convert";
+type Operation = "noise" | "cover" | "convert" | "generic-convert";
 type Theme = "light" | "dark" | "system";
 
 const defaultMetadata: ID3Metadata = {
@@ -18,6 +18,15 @@ const defaultOptions: ProcessOptions = {
   noiseType: "pink",
   bitrate: "192k",
 };
+
+const defaultGenericConvertOptions: GenericConvertOptions = {
+  format: "mp3",
+  bitrate: "320k",
+  sampleRate: 48000,
+  channels: 2,
+};
+
+const LOSSLESS_FORMATS: OutputFormat[] = ["wav", "flac", "aiff"];
 
 function formatSize(bytes: number) {
   if (!bytes) return "";
@@ -118,6 +127,11 @@ export default function App() {
   const [dragOverWav, setDragOverWav] = useState(false);
   const [dragOverMp3, setDragOverMp3] = useState(false);
 
+  // Generic converter state
+  const [genericConvertFile, setGenericConvertFile] = useState<File | null>(null);
+  const [genericConvertOptions, setGenericConvertOptions] = useState<GenericConvertOptions>(defaultGenericConvertOptions);
+  const [dragOverGeneric, setDragOverGeneric] = useState(false);
+
   const clearResults = useCallback(() => {
     setDownloadUrl((url) => {
       if (url) URL.revokeObjectURL(url);
@@ -190,6 +204,30 @@ export default function App() {
     setMetadata((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleGenericConvertFileSelect = useCallback(
+    (nextFile: File | null) => {
+      setGenericConvertFile(nextFile);
+      clearResults();
+    },
+    [clearResults]
+  );
+
+  const handleGenericConvertDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOverGeneric(false);
+      const droppedFile = e.dataTransfer.files?.[0];
+      if (droppedFile && droppedFile.type.startsWith("audio/")) {
+        handleGenericConvertFileSelect(droppedFile);
+      }
+    },
+    [handleGenericConvertFileSelect]
+  );
+
+  const updateGenericConvertOption = <K extends keyof GenericConvertOptions>(key: K, value: GenericConvertOptions[K]) => {
+    setGenericConvertOptions((prev) => ({ ...prev, [key]: value }));
+  };
+
   const handleFileSelect = useCallback(
     (nextFile: File | null) => {
       setFile(nextFile);
@@ -234,6 +272,11 @@ export default function App() {
         setError("Please choose both a WAV file and an MP3 source file.");
         return;
       }
+    } else if (operation === "generic-convert") {
+      if (!genericConvertFile) {
+        setError("Please choose an audio file to convert.");
+        return;
+      }
     } else if (!file) {
       setError("Please choose an audio file.");
       return;
@@ -266,6 +309,16 @@ export default function App() {
         setDownloadName(outputName);
         setPreviewUrl(url);
         setStatus("WAV retagged into 320kbps MP3 with metadata. Ready to download.");
+      } else if (operation === "generic-convert") {
+        const result = await convertAudio(genericConvertFile!, genericConvertOptions);
+        const url = URL.createObjectURL(result.blob);
+        setDownloadUrl(url);
+        setDownloadName(result.filename);
+        setPreviewUrl(url);
+        const formatLabel = genericConvertOptions.format.toUpperCase();
+        const isLossless = LOSSLESS_FORMATS.includes(genericConvertOptions.format);
+        const bitrateInfo = isLossless ? "lossless" : genericConvertOptions.bitrate;
+        setStatus(`Converted to ${formatLabel} (${bitrateInfo}). Ready to download.`);
       }
     } catch (err) {
       console.error(err);
@@ -366,11 +419,26 @@ export default function App() {
                 </div>
                 <span className="radio-card-label">Retag WAV into MP3</span>
               </label>
+              <label className={`radio-card ${operation === "generic-convert" ? "selected" : ""}`}>
+                <input
+                  type="radio"
+                  name="operation"
+                  value="generic-convert"
+                  checked={operation === "generic-convert"}
+                  onChange={() => setOperation("generic-convert")}
+                />
+                <div className="radio-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                  </svg>
+                </div>
+                <span className="radio-card-label">Convert Audio</span>
+              </label>
             </div>
           </section>
 
           {/* File Picker - only for noise/cover operations */}
-          {operation !== "convert" && (
+          {operation !== "convert" && operation !== "generic-convert" && (
             <section className="section">
               <h2 className="section-title">
                 <span className="step-number">2</span>
@@ -580,6 +648,134 @@ export default function App() {
             </>
           )}
 
+          {/* Generic Converter Section */}
+          {operation === "generic-convert" && (
+            <>
+              <section className="section">
+                <h2 className="section-title">
+                  <span className="step-number">2</span>
+                  Choose an audio file
+                </h2>
+                <p className="hint">Supports WAV, FLAC, AIFF, MP3, OGG, and more.</p>
+                <div
+                  className={`file-dropzone ${dragOverGeneric ? "drag-over" : ""} ${genericConvertFile ? "has-file" : ""}`}
+                  onDrop={handleGenericConvertDrop}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverGeneric(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    setDragOverGeneric(false);
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.m4a"
+                    onChange={(e) => handleGenericConvertFileSelect(e.target.files?.[0] ?? null)}
+                    className="file-input-hidden"
+                    id="generic-convert-input"
+                  />
+                  <label htmlFor="generic-convert-input" className="file-dropzone-label">
+                    <div className="file-icon">
+                      {genericConvertFile ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M9 12l2 2 4-4" />
+                          <circle cx="12" cy="12" r="10" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17,8 12,3 7,8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="file-text">
+                      {genericConvertFile ? (
+                        <>
+                          <span className="file-name">{genericConvertFile.name}</span>
+                          <span className="file-size">{formatSize(genericConvertFile.size)}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="file-cta">Click to browse or drag & drop</span>
+                          <span className="file-hint">WAV, FLAC, AIFF, MP3, OGG</span>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              </section>
+
+              <section className="section">
+                <h2 className="section-title">
+                  <span className="step-number">3</span>
+                  Conversion options
+                </h2>
+                <div className="options-grid">
+                  <div className="input-group">
+                    <label htmlFor="outputFormat">Output format</label>
+                    <select
+                      id="outputFormat"
+                      value={genericConvertOptions.format}
+                      onChange={(e) => updateGenericConvertOption("format", e.target.value as OutputFormat)}
+                    >
+                      <optgroup label="Lossy">
+                        <option value="mp3">MP3</option>
+                        <option value="ogg">OGG Vorbis</option>
+                        <option value="aac">AAC (M4A)</option>
+                      </optgroup>
+                      <optgroup label="Lossless">
+                        <option value="wav">WAV</option>
+                        <option value="flac">FLAC</option>
+                        <option value="aiff">AIFF</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="convertBitrate">Bitrate</label>
+                    <select
+                      id="convertBitrate"
+                      value={genericConvertOptions.bitrate}
+                      onChange={(e) => updateGenericConvertOption("bitrate", e.target.value)}
+                      disabled={LOSSLESS_FORMATS.includes(genericConvertOptions.format)}
+                    >
+                      <option value="96k">96 kbps</option>
+                      <option value="128k">128 kbps</option>
+                      <option value="192k">192 kbps</option>
+                      <option value="256k">256 kbps</option>
+                      <option value="320k">320 kbps</option>
+                    </select>
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="sampleRate">Sample rate</label>
+                    <select
+                      id="sampleRate"
+                      value={genericConvertOptions.sampleRate}
+                      onChange={(e) => updateGenericConvertOption("sampleRate", Number(e.target.value) as SampleRate)}
+                    >
+                      <option value={44100}>44.1 kHz</option>
+                      <option value={48000}>48 kHz</option>
+                      <option value={96000}>96 kHz</option>
+                    </select>
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="channels">Channels</label>
+                    <select
+                      id="channels"
+                      value={genericConvertOptions.channels}
+                      onChange={(e) => updateGenericConvertOption("channels", Number(e.target.value) as Channels)}
+                    >
+                      <option value={1}>Mono</option>
+                      <option value={2}>Stereo</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
+
           {/* Options */}
           {operation === "noise" && (
             <section className="section">
@@ -661,8 +857,10 @@ export default function App() {
                   "Add noise + concat"
                 ) : operation === "cover" ? (
                   "Extract cover"
-                ) : (
+                ) : operation === "convert" ? (
                   "Convert to MP3"
+                ) : (
+                  `Convert to ${genericConvertOptions.format.toUpperCase()}`
                 )}
               </button>
               <button
@@ -673,6 +871,8 @@ export default function App() {
                   setMp3SourceFile(null);
                   setMetadata(defaultMetadata);
                   setOptions(defaultOptions);
+                  setGenericConvertFile(null);
+                  setGenericConvertOptions(defaultGenericConvertOptions);
                   clearResults();
                 }}
                 disabled={processing}
