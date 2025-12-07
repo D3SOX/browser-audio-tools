@@ -337,8 +337,7 @@ export default function App() {
           <div className="hero-content">
             <h1 className="hero-title">Browser Audio Tools</h1>
             <p className="hero-subtitle">
-              Add noise, extract cover art, or convert and retag audio — all processed locally in your
-              browser.
+              Various tools for client-side audio processing
             </p>
             <div className="hero-actions">
               <a
@@ -656,7 +655,6 @@ export default function App() {
                   <span className="step-number">2</span>
                   Choose an audio file
                 </h2>
-                <p className="hint">Supports WAV, FLAC, AIFF, MP3, OGG, and more.</p>
                 <div
                   className={`file-dropzone ${dragOverGeneric ? "drag-over" : ""} ${genericConvertFile ? "has-file" : ""}`}
                   onDrop={handleGenericConvertDrop}
@@ -700,7 +698,7 @@ export default function App() {
                       ) : (
                         <>
                           <span className="file-cta">Click to browse or drag & drop</span>
-                          <span className="file-hint">WAV, FLAC, AIFF, MP3, OGG</span>
+                          <span className="file-hint">Supports WAV, FLAC, AIFF, MP3, OGG, and more.</span>
                         </>
                       )}
                     </div>
