@@ -17,6 +17,9 @@
   --input-bg: rgba(255, 255, 255, 0.9);
   --input-border: #c7d2fe;
   --input-focus-ring: rgba(99, 102, 241, 0.4);
+  --input-disabled-bg: rgba(99, 102, 241, 0.08);
+  --input-disabled-border: rgba(99, 102, 241, 0.2);
+  --input-disabled-text: #94a3b8;
 
   --btn-primary-bg: linear-gradient(135deg, #6366f1, #8b5cf6);
   --btn-primary-hover: linear-gradient(135deg, #4f46e5, #7c3aed);
@@ -60,6 +63,9 @@
   --input-bg: rgba(30, 27, 75, 0.6);
   --input-border: rgba(99, 102, 241, 0.3);
   --input-focus-ring: rgba(139, 92, 246, 0.5);
+  --input-disabled-bg: rgba(255, 255, 255, 0.06);
+  --input-disabled-border: rgba(255, 255, 255, 0.12);
+  --input-disabled-text: #cbd5e1;
 
   --btn-primary-bg: linear-gradient(135deg, #7c3aed, #a855f7);
   --btn-primary-hover: linear-gradient(135deg, #6d28d9, #9333ea);
@@ -521,6 +527,11 @@ body {
   align-items: flex-end;
 }
 
+.label-with-tooltip {
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .input-group-full {
   grid-column: 1 / -1;
 }
@@ -561,6 +572,84 @@ select {
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   padding-right: 2.5rem;
+}
+
+input[type="number"]:disabled,
+input[type="text"]:disabled,
+select:disabled {
+  background: var(--input-disabled-bg);
+  border-color: var(--input-disabled-border);
+  color: var(--input-disabled-text);
+  cursor: not-allowed;
+}
+
+select:disabled {
+  background-image: none;
+}
+
+.input-group-disabled label {
+  color: var(--input-disabled-text);
+}
+
+.input-group-disabled select {
+  box-shadow: none;
+}
+
+.tooltip-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--input-disabled-border);
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.tooltip-icon-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tooltip-icon::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -4px);
+  bottom: 100%;
+  white-space: nowrap;
+  padding: 0.4rem 0.55rem;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  box-shadow: var(--card-shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 3;
+}
+
+.tooltip-icon:focus-visible,
+.tooltip-icon:hover {
+  transform: translateY(-1px);
+}
+
+.tooltip-icon:focus-visible::after,
+.tooltip-icon:hover::after {
+  opacity: 1;
+  transform: translate(-50%, -8px);
+}
+
+.tooltip-icon:focus-visible {
+  outline: 2px solid var(--input-focus-ring);
+  outline-offset: 2px;
 }
 
 /* ===== Hint Text ===== */
