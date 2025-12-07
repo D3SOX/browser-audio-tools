@@ -44,6 +44,11 @@ This is a fully static site (no serverless functions needed):
   - Output: MP3, OGG, AAC (lossy) or WAV, FLAC, AIFF (lossless)
   - Configurable bitrate, sample rate, and channels
 
+## Use cases
+
+- **Noise + concat to dodge filters**: Add a short burst of pink/white noise up front to slightly change the fingerprint of a track. Useful when you already hold the rights but need to avoid automated takedowns on platforms like SoundCloud; keep it subtle so listeners barely notice.
+- **Retag WAV into MP3**: When you have a clean WAV render but metadata lives in another file (e.g., an MP3 grabbed via `yt-dlp` from SoundCloud/YouTube), load both: pick the WAV as the target and the MP3 as the metadata source. The tool copies title/artist/album/artwork into a 320kbps MP3 and you can tidy ID3 tags like properly putting it into the respective fields for Title/Artist/Album (optional) or removing superflous text like `[FREE DOWNLOAD]` for a cleaner library.
+
 ## Frontend
 
 - Single-page React UI (`src/frontend/App.tsx`) with file upload, operation selector, noise options, and download/preview
