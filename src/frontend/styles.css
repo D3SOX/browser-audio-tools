@@ -30,9 +30,11 @@
   --dropzone-hover-border: #818cf8;
   --dropzone-active-bg: rgba(99, 102, 241, 0.1);
 
-  --radio-card-bg: rgba(255, 255, 255, 0.7);
-  --radio-card-selected-bg: rgba(99, 102, 241, 0.15);
-  --radio-card-selected-border: #818cf8;
+  --radio-card-bg: rgba(255, 255, 255, 0.96);
+  --radio-card-border: rgba(79, 70, 229, 0.18);
+  --radio-card-selected-bg: #eef2ff;
+  --radio-card-selected-border: #4f46e5;
+  --radio-card-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 
   --result-bg: rgba(255, 255, 255, 0.7);
   --success-color: #059669;
@@ -71,9 +73,11 @@
   --dropzone-hover-border: #a78bfa;
   --dropzone-active-bg: rgba(139, 92, 246, 0.2);
 
-  --radio-card-bg: rgba(30, 27, 75, 0.5);
-  --radio-card-selected-bg: rgba(139, 92, 246, 0.2);
-  --radio-card-selected-border: #a78bfa;
+  --radio-card-bg: rgba(17, 24, 39, 0.78);
+  --radio-card-border: rgba(167, 139, 250, 0.22);
+  --radio-card-selected-bg: rgba(99, 102, 241, 0.22);
+  --radio-card-selected-border: #c4b5fd;
+  --radio-card-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 
   --result-bg: rgba(30, 27, 75, 0.6);
   --success-color: #34d399;
@@ -447,19 +451,23 @@ body {
   gap: 0.5rem;
   padding: 1.25rem 1rem;
   background: var(--radio-card-bg);
-  border: 2px solid transparent;
+  border: 1.5px solid var(--radio-card-border);
   border-radius: 14px;
+  box-shadow: var(--radio-card-shadow);
+  color: var(--text-primary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
 .radio-card:hover {
   background: var(--radio-card-selected-bg);
+  border-color: var(--radio-card-selected-border);
 }
 
 .radio-card.selected {
   background: var(--radio-card-selected-bg);
   border-color: var(--radio-card-selected-border);
+  box-shadow: 0 0 0 1px var(--radio-card-selected-border), var(--radio-card-shadow);
 }
 
 .radio-card input {
