@@ -30,7 +30,9 @@ function translateFFmpegLoadError(error: unknown): Error {
       `FFmpeg failed to load. A content or privacy blocker may be blocking blob: scripts. Try disabling blockers for this site or use a different browser. Error: ${error.message}`
     );
   }
-  return new Error("Failed to load ffmpeg.wasm");
+  return new Error(
+    `FFmpeg failed to load. A content or privacy blocker may be blocking blob: scripts. Try disabling blockers for this site or use a different browser. Error: ${String(error)}`
+  );
 }
 
 async function ensureFFmpegLoaded(): Promise<FFmpeg> {
