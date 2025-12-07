@@ -26,12 +26,9 @@ let loadPromise: Promise<void> | null = null;
 
 function translateFFmpegLoadError(error: unknown): Error {
   if (error instanceof Error) {
-    if (/Failed to fetch dynamically imported module/.test(error.message)) {
-      return new Error(
-        "FFmpeg failed to load. A content or privacy blocker may be blocking blob: scripts. Try disabling blockers for this site or use a different browser."
-      );
-    }
-    return new Error(`Failed to load ffmpeg.wasm: ${error.message}`);
+    return new Error(
+      `FFmpeg failed to load. A content or privacy blocker may be blocking blob: scripts. Try disabling blockers for this site or use a different browser. Error: ${error.message}`
+    );
   }
   return new Error("Failed to load ffmpeg.wasm");
 }
