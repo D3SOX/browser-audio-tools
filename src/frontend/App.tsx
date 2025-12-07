@@ -265,7 +265,7 @@ export default function App() {
         setDownloadUrl(url);
         setDownloadName(outputName);
         setPreviewUrl(url);
-        setStatus("WAV converted to 320kbps MP3 with metadata. Ready to download.");
+        setStatus("WAV retagged into 320kbps MP3 with metadata. Ready to download.");
       }
     } catch (err) {
       console.error(err);
@@ -364,7 +364,7 @@ export default function App() {
                     <path d="M9 15l2 2 4-4" />
                   </svg>
                 </div>
-                <span className="radio-card-label">WAV to MP3</span>
+                <span className="radio-card-label">Retag WAV into MP3</span>
               </label>
             </div>
           </section>

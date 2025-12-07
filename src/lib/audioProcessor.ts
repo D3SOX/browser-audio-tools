@@ -236,7 +236,7 @@ export async function convertWavToMp3WithMetadata(
     };
   } catch (error) {
     throw new Error(
-      error instanceof Error ? error.message : "Failed to convert WAV to MP3"
+      error instanceof Error ? error.message : "Failed to retag WAV into MP3"
     );
   } finally {
     cleanupFiles(ff, [wavName, mp3Name, outName]);
