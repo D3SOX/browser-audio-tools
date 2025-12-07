@@ -114,7 +114,6 @@ export default function App() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -147,7 +146,6 @@ export default function App() {
     setDownloadName(null);
     setStatus(null);
     setError(null);
-    setProgress(0);
   }, []);
 
   const handleWavFileSelect = useCallback(
@@ -270,10 +268,6 @@ export default function App() {
     setOptions((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleProgress = useCallback((value: number) => {
-    setProgress(Math.min(1, Math.max(0, value)));
-  }, []);
-
   const submit = async () => {
     if (operation === "convert") {
       if (!wavFile || !mp3SourceFile) {
@@ -293,18 +287,17 @@ export default function App() {
     setProcessing(true);
     setError(null);
     setStatus("Processing...");
-    setProgress(0);
 
     try {
       if (operation === "noise") {
-        const result = await processAudio(file!, options, handleProgress);
+        const result = await processAudio(file!, options);
         const url = URL.createObjectURL(result.blob);
         setDownloadUrl(url);
         setDownloadName(result.filename);
         setPreviewUrl(url);
         setStatus("Noise added and concatenated. Ready to download.");
       } else if (operation === "cover") {
-        const result = await extractCover(file!, handleProgress);
+        const result = await extractCover(file!);
         const url = URL.createObjectURL(result.blob);
         setDownloadUrl(url);
         setDownloadName(result.filename);
@@ -312,25 +305,14 @@ export default function App() {
         setStatus("Cover extracted. Ready to download.");
       } else if (operation === "convert") {
         const outputName = mp3SourceFile!.name.replace(/\.mp3$/i, "") + ".mp3";
-        const result = await convertWavToMp3(
-          wavFile!,
-          mp3SourceFile!,
-          metadata,
-          outputName,
-          handleProgress
-        );
+        const result = await convertWavToMp3(wavFile!, mp3SourceFile!, metadata, outputName);
         const url = URL.createObjectURL(result.blob);
         setDownloadUrl(url);
         setDownloadName(outputName);
         setPreviewUrl(url);
         setStatus("WAV retagged into 320kbps MP3 with metadata. Ready to download.");
       } else if (operation === "generic-convert") {
-        const result = await convertAudio(
-          genericConvertFile!,
-          genericConvertOptions,
-          undefined,
-          handleProgress
-        );
+        const result = await convertAudio(genericConvertFile!, genericConvertOptions);
         const url = URL.createObjectURL(result.blob);
         setDownloadUrl(url);
         setDownloadName(result.filename);
@@ -344,7 +326,6 @@ export default function App() {
       console.error(err);
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setStatus(null);
-      setProgress(0);
     } finally {
       setProcessing(false);
     }
@@ -756,20 +737,20 @@ export default function App() {
                     <label htmlFor="convertBitrate" className="label-with-tooltip">
                       <span>Bitrate</span>
                       <span
-                        className={`tooltip-icon ${isLosslessFormat ? "tooltip-icon-active" : ""}`}
-                        data-tooltip="Bitrate is not applicable for lossless formats."
-                        aria-label="Bitrate is not applicable for lossless formats."
-                        role="tooltip"
-                        aria-hidden={!isLosslessFormat}
+                          className={`tooltip-icon ${isLosslessFormat ? "tooltip-icon-active" : ""}`}
+                          data-tooltip="Bitrate is not applicable for lossless formats."
+                          aria-label="Bitrate is not applicable for lossless formats."
+                          role="tooltip"
+                          aria-hidden={!isLosslessFormat}
                       >
                         i
                       </span>
                     </label>
                     <select
-                      id="convertBitrate"
-                      value={genericConvertOptions.bitrate}
-                      onChange={(e) => updateGenericConvertOption("bitrate", e.target.value)}
-                      disabled={isLosslessFormat}
+                        id="convertBitrate"
+                        value={genericConvertOptions.bitrate}
+                        onChange={(e) => updateGenericConvertOption("bitrate", e.target.value)}
+                        disabled={isLosslessFormat}
                     >
                       <option value="96k">96 kbps</option>
                       <option value="128k">128 kbps</option>
@@ -910,22 +891,6 @@ export default function App() {
                 Reset
               </button>
             </div>
-
-            {processing && (
-              <div className="progress-row" aria-label="FFmpeg progress">
-                <div
-                  className="progress-track"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(progress * 100)}
-                  aria-valuetext={`${Math.round(progress * 100)}%`}
-                >
-                  <div className="progress-fill" style={{ width: `${Math.round(progress * 100)}%` }} />
-                </div>
-                <span className="progress-label">{Math.round(progress * 100)}%</span>
-              </div>
-            )}
 
             {status && <div className="status-message success">{status}</div>}
             {error && <div className="status-message error">{error}</div>}

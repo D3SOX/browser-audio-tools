@@ -16,8 +16,6 @@ export interface ProcessResult {
   mime: string;
 }
 
-export type ProgressCallback = (progress: number) => void;
-
 const CORE_VERSION = "0.12.10";
 const CORE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/esm`;
 
@@ -48,36 +46,11 @@ function cleanupFiles(ff: FFmpeg, names: string[]) {
   }
 }
 
-function attachProgress(ff: FFmpeg, onProgress?: ProgressCallback) {
-  if (!onProgress) return () => {};
-  const handler = ({ progress }: { progress?: number }) => {
-    if (typeof progress !== "number") return;
-    const clamped = Math.min(1, Math.max(0, progress));
-    onProgress(clamped);
-  };
-
-  ff.on("progress", handler);
-
-  const ffWithOff = ff as unknown as {
-    off?: (event: string, listener: (...args: unknown[]) => void) => void;
-  };
-
-  return () => {
-    try {
-      ffWithOff.off?.("progress", handler);
-    } catch {
-      // ignore detach errors
-    }
-  };
-}
-
 export async function addNoiseAndConcat(
   input: Uint8Array,
-  options: NoiseOptions = {},
-  onProgress?: ProgressCallback
+  options: NoiseOptions = {}
 ): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
-  const detachProgress = attachProgress(ff, onProgress);
 
   const inputName = "input.mp3";
   const outputName = "output.mp3";
@@ -117,7 +90,6 @@ export async function addNoiseAndConcat(
     if (!(data instanceof Uint8Array)) {
       throw new Error("Unexpected ffmpeg output");
     }
-    onProgress?.(1);
     return {
       data,
       filename: outputName,
@@ -128,17 +100,12 @@ export async function addNoiseAndConcat(
       error instanceof Error ? error.message : "Failed to process audio with ffmpeg.wasm"
     );
   } finally {
-    detachProgress();
     cleanupFiles(ff, [inputName, outputName]);
   }
 }
 
-export async function extractCover(
-  input: Uint8Array,
-  onProgress?: ProgressCallback
-): Promise<ProcessResult> {
+export async function extractCover(input: Uint8Array): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
-  const detachProgress = attachProgress(ff, onProgress);
 
   const inputName = "input.mp3";
   const outputName = "cover.jpg";
@@ -152,7 +119,6 @@ export async function extractCover(
       throw new Error("Unexpected ffmpeg output");
     }
 
-    onProgress?.(1);
     return {
       data,
       filename: outputName,
@@ -161,7 +127,6 @@ export async function extractCover(
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : "Failed to extract cover image");
   } finally {
-    detachProgress();
     cleanupFiles(ff, [inputName, outputName]);
   }
 }
@@ -237,11 +202,9 @@ export async function convertAudio(
   input: Uint8Array,
   inputFilename: string,
   options: GenericConvertOptions,
-  outputBaseName?: string,
-  onProgress?: ProgressCallback
+  outputBaseName?: string
 ): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
-  const detachProgress = attachProgress(ff, onProgress);
 
   const config = FORMAT_CONFIG[options.format];
   const inputExt = inputFilename.split(".").pop()?.toLowerCase() ?? "wav";
@@ -283,7 +246,6 @@ export async function convertAudio(
     if (!(data instanceof Uint8Array)) {
       throw new Error("Unexpected ffmpeg output");
     }
-    onProgress?.(1);
     return {
       data,
       filename: outName,
@@ -294,7 +256,6 @@ export async function convertAudio(
       error instanceof Error ? error.message : "Failed to convert audio"
     );
   } finally {
-    detachProgress();
     cleanupFiles(ff, [inputName, outName]);
   }
 }
@@ -303,11 +264,9 @@ export async function convertWavToMp3WithMetadata(
   wavInput: Uint8Array,
   mp3Source: Uint8Array,
   options: ConvertOptions = {},
-  outputFilename?: string,
-  onProgress?: ProgressCallback
+  outputFilename?: string
 ): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
-  const detachProgress = attachProgress(ff, onProgress);
 
   const wavName = "input.wav";
   const mp3Name = "source.mp3";
@@ -353,7 +312,6 @@ export async function convertWavToMp3WithMetadata(
     if (!(data instanceof Uint8Array)) {
       throw new Error("Unexpected ffmpeg output");
     }
-    onProgress?.(1);
     return {
       data,
       filename: outName,
@@ -364,7 +322,6 @@ export async function convertWavToMp3WithMetadata(
       error instanceof Error ? error.message : "Failed to retag WAV into MP3"
     );
   } finally {
-    detachProgress();
     cleanupFiles(ff, [wavName, mp3Name, outName]);
   }
 }

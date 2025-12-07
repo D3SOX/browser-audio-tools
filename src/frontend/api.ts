@@ -11,7 +11,6 @@ import {
   type OutputFormat,
   type SampleRate,
   type Channels,
-  type ProgressCallback,
 } from "../lib/audioProcessor";
 
 export type NoiseType = "white" | "pink";
@@ -30,11 +29,7 @@ export interface ApiResult {
   contentType: string;
 }
 
-export async function processAudio(
-  file: File,
-  options: ProcessOptions,
-  onProgress?: ProgressCallback
-): Promise<ApiResult> {
+export async function processAudio(file: File, options: ProcessOptions): Promise<ApiResult> {
   const input = new Uint8Array(await file.arrayBuffer());
 
   const noiseOpts: NoiseOptions = {
@@ -44,7 +39,7 @@ export async function processAudio(
     bitrate: options.bitrate,
   };
 
-  const result = await addNoiseAndConcat(input, noiseOpts, onProgress);
+  const result = await addNoiseAndConcat(input, noiseOpts);
 
   return {
     blob: new Blob([result.data], { type: result.mime }),
@@ -53,12 +48,9 @@ export async function processAudio(
   };
 }
 
-export async function extractCover(
-  file: File,
-  onProgress?: ProgressCallback
-): Promise<ApiResult> {
+export async function extractCover(file: File): Promise<ApiResult> {
   const input = new Uint8Array(await file.arrayBuffer());
-  const result = await extractCoverLib(input, onProgress);
+  const result = await extractCoverLib(input);
 
   return {
     blob: new Blob([result.data], { type: result.mime }),
@@ -76,13 +68,12 @@ export async function convertWavToMp3(
   wavFile: File,
   mp3SourceFile: File,
   options: ConvertOptions = {},
-  outputFilename?: string,
-  onProgress?: ProgressCallback
+  outputFilename?: string
 ): Promise<ApiResult> {
   const wavInput = new Uint8Array(await wavFile.arrayBuffer());
   const mp3Source = new Uint8Array(await mp3SourceFile.arrayBuffer());
 
-  const result = await convertWavLib(wavInput, mp3Source, options, outputFilename, onProgress);
+  const result = await convertWavLib(wavInput, mp3Source, options, outputFilename);
 
   return {
     blob: new Blob([result.data], { type: result.mime }),
@@ -94,11 +85,10 @@ export async function convertWavToMp3(
 export async function convertAudio(
   file: File,
   options: GenericConvertOptions,
-  outputBaseName?: string,
-  onProgress?: ProgressCallback
+  outputBaseName?: string
 ): Promise<ApiResult> {
   const input = new Uint8Array(await file.arrayBuffer());
-  const result = await convertAudioLib(input, file.name, options, outputBaseName, onProgress);
+  const result = await convertAudioLib(input, file.name, options, outputBaseName);
 
   return {
     blob: new Blob([result.data], { type: result.mime }),
