@@ -65,8 +65,8 @@ function useTheme() {
 
 function ThemeToggle({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void }) {
   const options: { value: Theme; icon: string; label: string }[] = [
-    { value: "light", icon: "☀️", label: "Light" },
     { value: "system", icon: "🖥️", label: "Auto" },
+    { value: "light", icon: "☀️", label: "Light" },
     { value: "dark", icon: "🌙", label: "Dark" },
   ];
 
@@ -430,6 +430,7 @@ export default function App() {
                   <span className="step-number">2</span>
                   Choose files
                 </h2>
+                <p className="hint">Outputs a 320kbps MP3; tags and art copy from the MP3 source.</p>
                 <div className="convert-files-grid">
                   {/* WAV File Picker */}
                   <div
