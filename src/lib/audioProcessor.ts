@@ -19,7 +19,7 @@ export interface ProcessResult {
 }
 
 const CORE_VERSION = "0.12.10";
-const CORE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/esm`;
+const CORE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@${CORE_VERSION}/dist/esm`;
 
 let ffmpeg: FFmpeg | null = null;
 let loadPromise: Promise<void> | null = null;
@@ -32,7 +32,11 @@ async function ensureFFmpegLoaded(): Promise<FFmpeg> {
       ffmpeg = new FFmpeg();
       const coreURL = await toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.js`, "text/javascript");
       const wasmURL = await toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.wasm`, "application/wasm");
-      await ffmpeg.load({ coreURL, wasmURL });})();
+      const workerURL = await toBlobURL(
+        `${CORE_BASE_URL}/ffmpeg-core.worker.js`,
+        "text/javascript"
+      );
+      await ffmpeg.load({ coreURL, wasmURL, workerURL });})();
   }
   await loadPromise;
   return ffmpeg!;
