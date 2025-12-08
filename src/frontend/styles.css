@@ -689,8 +689,10 @@ select:disabled {
 }
 
 .input-with-suffix input:disabled + .input-suffix {
-  border-color: var(--input-disabled-border);
-  color: var(--input-disabled-text);
+  background: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--text-muted);
+  box-shadow: inset 1px 0 0 var(--input-border);
 }
 
 select:disabled {
