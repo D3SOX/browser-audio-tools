@@ -40,8 +40,8 @@ This is a fully static site (no serverless functions needed):
 - **Extract Cover**: Pulls the embedded album art as JPEG (if present)
 - **Retag WAV into MP3**: Copy tags/artwork from an MP3 source onto a WAV render, output 320kbps MP3
 - **Convert Audio**: Convert between audio formats with advanced options
-  - Input: WAV, FLAC, AIFF, MP3, OGG, and more
-  - Output: MP3, OGG (lossy) or WAV, FLAC, AIFF (lossless)
+  - Input: WAV, FLAC, AIFF, MP3, OGG, AAC/M4A, and more
+  - Output: MP3, OGG, AAC/M4A (lossy) or WAV, FLAC, AIFF (lossless)
   - Configurable bitrate, sample rate, and channels
 - **Retag MP3**: Edit ID3v2 tags on existing MP3 files without re-encoding
 - **Audio Trimming**: Visually select a region, trim to it, and export in any supported format with optional silence removal (threshold + duration)
@@ -57,7 +57,7 @@ This is a fully static site (no serverless functions needed):
 ## Multi-processing & batching
 
 - The Tools Noise + Track, Extract Cover, and Convert Audio accept multiple files
-- Outputs download as a ZIP with unique filenames-
+- Outputs download as a ZIP with unique filenames
 - Quick previews appear for each item
 - Uses the multi-threaded ffmpeg core in the worker to speed up per-file execution where the browser allows
 
