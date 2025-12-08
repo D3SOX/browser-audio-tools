@@ -363,7 +363,7 @@ export interface ConvertOptions {
 }
 
 // Generic converter types (AAC removed due to wasm encoder issues)
-export type OutputFormat = "mp3" | "ogg" | "wav" | "flac" | "aiff";
+export type OutputFormat = "mp3" | "ogg" | "aac" | "wav" | "flac" | "aiff";
 export type SampleRate = 44100 | 48000 | 96000;
 export type Channels = 1 | 2;
 
@@ -387,6 +387,7 @@ export interface TrimOptions {
 const FORMAT_CONFIG: Record<OutputFormat, { codec: string; ext: string; mime: string; lossless: boolean }> = {
   mp3: { codec: "libmp3lame", ext: "mp3", mime: "audio/mpeg", lossless: false },
   ogg: { codec: "libvorbis", ext: "ogg", mime: "audio/ogg", lossless: false },
+  aac: { codec: "aac", ext: "m4a", mime: "audio/mp4", lossless: false },
   wav: { codec: "pcm_s16le", ext: "wav", mime: "audio/wav", lossless: true },
   flac: { codec: "flac", ext: "flac", mime: "audio/flac", lossless: true },
   aiff: { codec: "pcm_s16be", ext: "aiff", mime: "audio/aiff", lossless: true },
@@ -399,6 +400,8 @@ const FORMAT_CAPABILITIES: Record<OutputFormat, { sampleRates: SampleRate[]; cha
   mp3: { sampleRates: [44100, 48000], channels: [1, 2] },
   // Vorbis supports higher rates; 96k kept for hi-res, 44.1/48 for compatibility.
   ogg: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
+  // AAC encoder in ffmpeg.wasm is most reliable at common rates/channels
+  aac: { sampleRates: [44100, 48000], channels: [1, 2] },
   wav: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
   flac: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
   aiff: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },

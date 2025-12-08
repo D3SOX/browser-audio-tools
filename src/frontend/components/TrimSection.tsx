@@ -303,7 +303,7 @@ export function TrimSection({
                 <>
                   <span className="file-cta">Click to browse or drag & drop</span>
                   <span className="file-hint">
-                    Supports WAV, FLAC, AIFF, MP3, OGG, and more.
+                    Supports WAV, FLAC, AIFF, MP3, OGG, AAC (m4a), and more.
                   </span>
                 </>
               )}
@@ -404,8 +404,9 @@ export function TrimSection({
                 onChange={(e) => updateOption("format", e.target.value as OutputFormat)}
               >
                 <optgroup label="Lossy">
-                  <option value="mp3">MP3</option>
-                  <option value="ogg">OGG Vorbis</option>
+                <option value="mp3">MP3</option>
+                <option value="ogg">OGG Vorbis</option>
+                <option value="aac">AAC (M4A)</option>
                 </optgroup>
                 <optgroup label="Lossless">
                   <option value="wav">WAV</option>

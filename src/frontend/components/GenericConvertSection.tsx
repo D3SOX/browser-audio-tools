@@ -75,11 +75,11 @@ export function GenericConvertSection({
                 <span className="file-size">{formatSize(totalSize)}</span>
               </>
             ) : (
-                <>
-                  <span className="file-cta">Click to browse or drag & drop</span>
-                  <span className="file-hint">Supports WAV, FLAC, AIFF, MP3, OGG, and more. Select multiple files for batch processing.</span>
-                </>
-              )}
+              <>
+                <span className="file-cta">Click to browse or drag & drop</span>
+                <span className="file-hint">Supports WAV, FLAC, AIFF, MP3, OGG, AAC (m4a), and more. Select multiple files for batch processing.</span>
+              </>
+            )}
             </div>
           </label>
         </div>
@@ -107,6 +107,7 @@ export function GenericConvertSection({
               <optgroup label="Lossy">
                 <option value="mp3">MP3</option>
                 <option value="ogg">OGG Vorbis</option>
+                <option value="aac">AAC (M4A)</option>
               </optgroup>
               <optgroup label="Lossless">
                 <option value="wav">WAV</option>
