@@ -14,9 +14,12 @@ import {
   type Channels,
   type ProgressCallback,
 } from "../lib/audioProcessor";
+import { zipSync } from "fflate";
 
 export type NoiseType = "white" | "pink";
 export type { ID3Metadata, ConvertOptions, GenericConvertOptions, OutputFormat, SampleRate, Channels, ProgressCallback };
+
+export type BatchProgressCallback = (progress: { percent: number; currentFile: number; totalFiles: number }) => void;
 
 export interface ProcessOptions {
   durationSeconds: number;
@@ -123,5 +126,153 @@ export async function retagMp3(
     blob: new Blob([new Uint8Array(result.data)], { type: result.mime }),
     filename: result.filename,
     contentType: result.mime,
+  };
+}
+
+// --- Batch processing functions ---
+
+function createZipBlob(files: { name: string; data: Uint8Array }[]): Blob {
+  const zipData: Record<string, Uint8Array> = {};
+  for (const file of files) {
+    zipData[file.name] = file.data;
+  }
+  const zipped = zipSync(zipData);
+  // Slice to ensure we get a plain ArrayBuffer that Blob accepts
+  return new Blob([zipped.slice().buffer as ArrayBuffer], { type: "application/zip" });
+}
+
+function getUniqueFilename(name: string, usedNames: Set<string>): string {
+  if (!usedNames.has(name)) {
+    usedNames.add(name);
+    return name;
+  }
+  const ext = name.lastIndexOf(".") > 0 ? name.slice(name.lastIndexOf(".")) : "";
+  const base = name.slice(0, name.length - ext.length);
+  let counter = 1;
+  let newName = `${base}_${counter}${ext}`;
+  while (usedNames.has(newName)) {
+    counter++;
+    newName = `${base}_${counter}${ext}`;
+  }
+  usedNames.add(newName);
+  return newName;
+}
+
+export async function processAudioBatch(
+  files: File[],
+  options: ProcessOptions,
+  onProgress?: BatchProgressCallback
+): Promise<ApiResult> {
+  const results: { name: string; data: Uint8Array }[] = [];
+  const usedNames = new Set<string>();
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]!;
+    const input = new Uint8Array(await file.arrayBuffer());
+
+    const noiseOpts: NoiseOptions = {
+      durationSeconds: options.durationSeconds,
+      noiseVolume: options.noiseVolume,
+      noiseType: options.noiseType,
+      bitrate: options.bitrate,
+    };
+
+    const fileProgress: ProgressCallback = ({ percent }) => {
+      const overallPercent = Math.round(((i + percent / 100) / files.length) * 100);
+      onProgress?.({ percent: overallPercent, currentFile: i + 1, totalFiles: files.length });
+    };
+
+    const result = await addNoiseAndConcat(input, noiseOpts, fileProgress);
+    const outputName = file.name.replace(/\.[^.]+$/, "") + "_noise.mp3";
+    results.push({
+      name: getUniqueFilename(outputName, usedNames),
+      data: new Uint8Array(result.data),
+    });
+  }
+
+  onProgress?.({ percent: 100, currentFile: files.length, totalFiles: files.length });
+
+  const zipBlob = createZipBlob(results);
+  return {
+    blob: zipBlob,
+    filename: "audio_with_noise.zip",
+    contentType: "application/zip",
+  };
+}
+
+export async function extractCoverBatch(
+  files: File[],
+  onProgress?: BatchProgressCallback
+): Promise<ApiResult> {
+  const results: { name: string; data: Uint8Array }[] = [];
+  const usedNames = new Set<string>();
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]!;
+    const input = new Uint8Array(await file.arrayBuffer());
+
+    const fileProgress: ProgressCallback = ({ percent }) => {
+      const overallPercent = Math.round(((i + percent / 100) / files.length) * 100);
+      onProgress?.({ percent: overallPercent, currentFile: i + 1, totalFiles: files.length });
+    };
+
+    try {
+      const result = await extractCoverLib(input, fileProgress);
+      const outputName = file.name.replace(/\.[^.]+$/, "") + "_cover.jpg";
+      results.push({
+        name: getUniqueFilename(outputName, usedNames),
+        data: new Uint8Array(result.data),
+      });
+    } catch {
+      // Skip files without covers
+      console.warn(`No cover found in ${file.name}`);
+    }
+  }
+
+  onProgress?.({ percent: 100, currentFile: files.length, totalFiles: files.length });
+
+  if (results.length === 0) {
+    throw new Error("No covers found in any of the selected files.");
+  }
+
+  const zipBlob = createZipBlob(results);
+  return {
+    blob: zipBlob,
+    filename: "covers.zip",
+    contentType: "application/zip",
+  };
+}
+
+export async function convertAudioBatch(
+  files: File[],
+  options: GenericConvertOptions,
+  onProgress?: BatchProgressCallback
+): Promise<ApiResult> {
+  const results: { name: string; data: Uint8Array }[] = [];
+  const usedNames = new Set<string>();
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]!;
+    const input = new Uint8Array(await file.arrayBuffer());
+
+    const fileProgress: ProgressCallback = ({ percent }) => {
+      const overallPercent = Math.round(((i + percent / 100) / files.length) * 100);
+      onProgress?.({ percent: overallPercent, currentFile: i + 1, totalFiles: files.length });
+    };
+
+    const result = await convertAudioLib(input, file.name, options, undefined, fileProgress);
+    results.push({
+      name: getUniqueFilename(result.filename, usedNames),
+      data: new Uint8Array(result.data),
+    });
+  }
+
+  onProgress?.({ percent: 100, currentFile: files.length, totalFiles: files.length });
+
+  const zipBlob = createZipBlob(results);
+  return {
+    blob: zipBlob,
+    filename: `converted_${options.format}.zip`,
+    contentType: "application/zip",
   };
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
-import type { ProcessOptions, ID3Metadata, GenericConvertOptions, OutputFormat, ProgressCallback } from "./api";
-import { extractCover, processAudio, readMetadataFromFile, convertWavToMp3, convertAudio, retagMp3 } from "./api";
+import type { ProcessOptions, ID3Metadata, GenericConvertOptions, OutputFormat, ProgressCallback, BatchProgressCallback } from "./api";
+import { extractCover, processAudio, readMetadataFromFile, convertWavToMp3, convertAudio, retagMp3, processAudioBatch, extractCoverBatch, convertAudioBatch } from "./api";
 import "./styles.css";
 import { useTheme } from "./hooks/useTheme";
 import { Hero } from "./components/Hero";
@@ -69,7 +69,7 @@ const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
 
 export default function App() {
   const { theme, setTheme } = useTheme();
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [operation, setOperation] = useState<Operation>("noise");
   const [options, setOptions] = useState<ProcessOptions>(defaultOptions);
   const [status, setStatus] = useState<string | null>(null);
@@ -93,7 +93,7 @@ export default function App() {
   const [convertCoverPreviewUrl, setConvertCoverPreviewUrl] = useState<string | null>(null);
 
   // Generic converter state
-  const [genericConvertFile, setGenericConvertFile] = useState<File | null>(null);
+  const [genericConvertFiles, setGenericConvertFiles] = useState<File[]>([]);
   const [genericConvertOptions, setGenericConvertOptions] = useState<GenericConvertOptions>(defaultGenericConvertOptions);
   const [dragOverGeneric, setDragOverGeneric] = useState(false);
 
@@ -254,9 +254,9 @@ export default function App() {
     [convertCoverPreviewUrl]
   );
 
-  const handleGenericConvertFileSelect = useCallback(
-    (nextFile: File | null) => {
-      setGenericConvertFile(nextFile);
+  const handleGenericConvertFilesSelect = useCallback(
+    (nextFiles: File[]) => {
+      setGenericConvertFiles(nextFiles);
       clearResults();
     },
     [clearResults]
@@ -266,12 +266,12 @@ export default function App() {
     (e: DragEvent) => {
       e.preventDefault();
       setDragOverGeneric(false);
-      const droppedFile = e.dataTransfer.files?.[0];
-      if (droppedFile && droppedFile.type.startsWith("audio/")) {
-        handleGenericConvertFileSelect(droppedFile);
+      const droppedFiles = Array.from(e.dataTransfer.files ?? []).filter((f) => f.type.startsWith("audio/"));
+      if (droppedFiles.length > 0) {
+        handleGenericConvertFilesSelect(droppedFiles);
       }
     },
-    [handleGenericConvertFileSelect]
+    [handleGenericConvertFilesSelect]
   );
 
   const updateGenericConvertOption = <K extends keyof GenericConvertOptions>(key: K, value: GenericConvertOptions[K]) => {
@@ -348,28 +348,29 @@ export default function App() {
     [retagCoverPreviewUrl]
   );
 
-  const handleFileSelect = useCallback(
-    (nextFile: File | null) => {
-      setFile(nextFile);
+  const handleFilesSelect = useCallback(
+    (nextFiles: File[]) => {
+      setFiles(nextFiles);
       clearResults();
     },
     [clearResults]
   );
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    handleFileSelect(event.target.files?.[0] ?? null);
+    const selectedFiles = Array.from(event.target.files ?? []);
+    handleFilesSelect(selectedFiles);
   };
 
   const handleDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault();
       setDragOver(false);
-      const droppedFile = e.dataTransfer.files?.[0];
-      if (droppedFile && droppedFile.type.startsWith("audio/")) {
-        handleFileSelect(droppedFile);
+      const droppedFiles = Array.from(e.dataTransfer.files ?? []).filter((f) => f.type.startsWith("audio/"));
+      if (droppedFiles.length > 0) {
+        handleFilesSelect(droppedFiles);
       }
     },
-    [handleFileSelect]
+    [handleFilesSelect]
   );
 
   const handleDragOver = useCallback((e: DragEvent) => {
@@ -387,12 +388,12 @@ export default function App() {
   };
 
   const handleReset = useCallback(() => {
-    setFile(null);
+    setFiles([]);
     setWavFile(null);
     setMp3SourceFile(null);
     setMetadata(defaultMetadata);
     setOptions(defaultOptions);
-    setGenericConvertFile(null);
+    setGenericConvertFiles([]);
     setGenericConvertOptions(defaultGenericConvertOptions);
     setRetagFile(null);
     setRetagMetadata(defaultMetadata);
@@ -430,7 +431,7 @@ export default function App() {
         return;
       }
     } else if (activeOperation === "generic-convert") {
-      if (!genericConvertFile) {
+      if (genericConvertFiles.length === 0) {
         setError("Please choose an audio file to convert.");
         return;
       }
@@ -439,7 +440,7 @@ export default function App() {
         setError("Please choose an MP3 file to retag.");
         return;
       }
-    } else if (!file) {
+    } else if (files.length === 0) {
       setError("Please choose an audio file.");
       return;
     }
@@ -463,31 +464,68 @@ export default function App() {
       }));
     };
 
+    const onBatchProgress: BatchProgressCallback = ({ percent, currentFile, totalFiles }) => {
+      setProgress(percent);
+      setStatus(`Processing file ${currentFile} of ${totalFiles}...`);
+      setResultsByOperation((prev) => ({
+        ...prev,
+        [activeOperation]: { ...prev[activeOperation], progress: percent, status: `Processing file ${currentFile} of ${totalFiles}...`, processing: true },
+      }));
+    };
+
     try {
       if (activeOperation === "noise") {
-        const result = await processAudio(file!, options, onProgress);
-        const url = URL.createObjectURL(result.blob);
-        replaceOperationResult(activeOperation, {
-          status: "Noise added and concatenated. Ready to download.",
-          error: null,
-          downloadUrl: url,
-          downloadName: result.filename,
-          previewUrl: url,
-          progress: null,
-          processing: false,
-        });
+        if (files.length === 1) {
+          const result = await processAudio(files[0]!, options, onProgress);
+          const url = URL.createObjectURL(result.blob);
+          replaceOperationResult(activeOperation, {
+            status: "Noise added and concatenated. Ready to download.",
+            error: null,
+            downloadUrl: url,
+            downloadName: result.filename,
+            previewUrl: url,
+            progress: null,
+            processing: false,
+          });
+        } else {
+          const result = await processAudioBatch(files, options, onBatchProgress);
+          const url = URL.createObjectURL(result.blob);
+          replaceOperationResult(activeOperation, {
+            status: `Processed ${files.length} files. Ready to download ZIP.`,
+            error: null,
+            downloadUrl: url,
+            downloadName: result.filename,
+            previewUrl: null,
+            progress: null,
+            processing: false,
+          });
+        }
       } else if (activeOperation === "cover") {
-        const result = await extractCover(file!, onProgress);
-        const url = URL.createObjectURL(result.blob);
-        replaceOperationResult(activeOperation, {
-          status: "Cover extracted. Ready to download.",
-          error: null,
-          downloadUrl: url,
-          downloadName: result.filename,
-          previewUrl: url,
-          progress: null,
-          processing: false,
-        });
+        if (files.length === 1) {
+          const result = await extractCover(files[0]!, onProgress);
+          const url = URL.createObjectURL(result.blob);
+          replaceOperationResult(activeOperation, {
+            status: "Cover extracted. Ready to download.",
+            error: null,
+            downloadUrl: url,
+            downloadName: result.filename,
+            previewUrl: url,
+            progress: null,
+            processing: false,
+          });
+        } else {
+          const result = await extractCoverBatch(files, onBatchProgress);
+          const url = URL.createObjectURL(result.blob);
+          replaceOperationResult(activeOperation, {
+            status: `Extracted covers from ${files.length} files. Ready to download ZIP.`,
+            error: null,
+            downloadUrl: url,
+            downloadName: result.filename,
+            previewUrl: null,
+            progress: null,
+            processing: false,
+          });
+        }
       } else if (activeOperation === "convert") {
         const outputName = mp3SourceFile!.name.replace(/\.mp3$/i, "") + ".mp3";
         const result = await convertWavToMp3(wavFile!, mp3SourceFile!, metadata, outputName, onProgress, convertCover ?? undefined);
@@ -502,20 +540,35 @@ export default function App() {
           processing: false,
         });
       } else if (activeOperation === "generic-convert") {
-        const result = await convertAudio(genericConvertFile!, genericConvertOptions, undefined, onProgress);
-        const url = URL.createObjectURL(result.blob);
         const formatLabel = genericConvertOptions.format.toUpperCase();
-        const isLosslessFormat = LOSSLESS_FORMATS.includes(genericConvertOptions.format);
-        const bitrateInfo = isLosslessFormat ? "lossless" : genericConvertOptions.bitrate;
-        replaceOperationResult(activeOperation, {
-          status: `Converted to ${formatLabel} (${bitrateInfo}). Ready to download.`,
-          error: null,
-          downloadUrl: url,
-          downloadName: result.filename,
-          previewUrl: url,
-          progress: null,
-          processing: false,
-        });
+        const isLossless = LOSSLESS_FORMATS.includes(genericConvertOptions.format);
+        const bitrateInfo = isLossless ? "lossless" : genericConvertOptions.bitrate;
+
+        if (genericConvertFiles.length === 1) {
+          const result = await convertAudio(genericConvertFiles[0]!, genericConvertOptions, undefined, onProgress);
+          const url = URL.createObjectURL(result.blob);
+          replaceOperationResult(activeOperation, {
+            status: `Converted to ${formatLabel} (${bitrateInfo}). Ready to download.`,
+            error: null,
+            downloadUrl: url,
+            downloadName: result.filename,
+            previewUrl: url,
+            progress: null,
+            processing: false,
+          });
+        } else {
+          const result = await convertAudioBatch(genericConvertFiles, genericConvertOptions, onBatchProgress);
+          const url = URL.createObjectURL(result.blob);
+          replaceOperationResult(activeOperation, {
+            status: `Converted ${genericConvertFiles.length} files to ${formatLabel} (${bitrateInfo}). Ready to download ZIP.`,
+            error: null,
+            downloadUrl: url,
+            downloadName: result.filename,
+            previewUrl: null,
+            progress: null,
+            processing: false,
+          });
+        }
       } else if (activeOperation === "retag") {
         const result = await retagMp3(retagFile!, retagMetadata, onProgress, retagCover ?? undefined);
         const url = URL.createObjectURL(result.blob);
@@ -548,7 +601,7 @@ export default function App() {
           <OperationPicker operation={operation} onChange={handleOperationChange} />
 
           {operation !== "convert" && operation !== "generic-convert" && operation !== "retag" && (
-            <AudioFilePicker file={file} dragOver={dragOver} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onChange={handleFileChange} />
+            <AudioFilePicker files={files} dragOver={dragOver} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onChange={handleFileChange} />
           )}
 
           {operation === "convert" && (
@@ -587,7 +640,7 @@ export default function App() {
 
           {operation === "generic-convert" && (
             <GenericConvertSection
-              file={genericConvertFile}
+              files={genericConvertFiles}
               dragOver={dragOverGeneric}
               options={genericConvertOptions}
               isLosslessFormat={isLosslessFormat}
@@ -600,7 +653,7 @@ export default function App() {
                 e.preventDefault();
                 setDragOverGeneric(false);
               }}
-              onFileChange={handleGenericConvertFileSelect}
+              onFilesChange={handleGenericConvertFilesSelect}
               onOptionChange={updateGenericConvertOption}
             />
           )}

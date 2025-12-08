@@ -89,7 +89,11 @@ export function ActionsSection({
               {downloadName}
             </a>
           </div>
-          <div className="result-preview">{operation === "cover" ? <img src={previewUrl ?? undefined} alt="Cover preview" /> : <audio controls src={previewUrl ?? undefined} />}</div>
+          {previewUrl && (
+            <div className="result-preview">
+              {operation === "cover" ? <img src={previewUrl} alt="Cover preview" /> : <audio controls src={previewUrl} />}
+            </div>
+          )}
         </div>
       )}
     </section>

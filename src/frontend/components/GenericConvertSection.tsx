@@ -3,48 +3,55 @@ import type { Channels, GenericConvertOptions, OutputFormat, SampleRate } from "
 import { formatSize } from "../utils/formatSize";
 
 type GenericConvertSectionProps = {
-  file: File | null;
+  files: File[];
   dragOver: boolean;
   options: GenericConvertOptions;
   isLosslessFormat: boolean;
   onDrop: (e: DragEvent) => void;
   onDragOver: (e: DragEvent) => void;
   onDragLeave: (e: DragEvent) => void;
-  onFileChange: (file: File | null) => void;
+  onFilesChange: (files: File[]) => void;
   onOptionChange: <K extends keyof GenericConvertOptions>(key: K, value: GenericConvertOptions[K]) => void;
 };
 
 export function GenericConvertSection({
-  file,
+  files,
   dragOver,
   options,
   isLosslessFormat,
   onDrop,
   onDragOver,
   onDragLeave,
-  onFileChange,
+  onFilesChange,
   onOptionChange,
 }: GenericConvertSectionProps) {
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => onFileChange(e.target.files?.[0] ?? null);
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files ?? []);
+    onFilesChange(selectedFiles);
+  };
+
+  const hasFiles = files.length > 0;
+  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
   return (
     <>
       <section className="section">
         <h2 className="section-title">
           <span className="step-number">2</span>
-          Choose an audio file
+          Choose audio files
         </h2>
-        <div className={`file-dropzone ${dragOver ? "drag-over" : ""} ${file ? "has-file" : ""}`} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}>
+        <div className={`file-dropzone ${dragOver ? "drag-over" : ""} ${hasFiles ? "has-file" : ""}`} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}>
           <input
             type="file"
             accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.m4a"
+            multiple
             onChange={handleFileChange}
             className="file-input-hidden"
             id="generic-convert-input"
           />
           <label htmlFor="generic-convert-input" className="file-dropzone-label">
             <div className="file-icon">
-              {file ? (
+              {hasFiles ? (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M9 12l2 2 4-4" />
                   <circle cx="12" cy="12" r="10" />
@@ -58,20 +65,32 @@ export function GenericConvertSection({
               )}
             </div>
             <div className="file-text">
-              {file ? (
-                <>
-                  <span className="file-name">{file.name}</span>
-                  <span className="file-size">{formatSize(file.size)}</span>
-                </>
-              ) : (
+            {hasFiles ? (
+              <>
+                <span className="file-name">
+                  {files.length === 1 ? files[0]!.name : `${files.length} files selected`}
+                </span>
+                <span className="file-size">{formatSize(totalSize)}</span>
+              </>
+            ) : (
                 <>
                   <span className="file-cta">Click to browse or drag & drop</span>
-                  <span className="file-hint">Supports WAV, FLAC, AIFF, MP3, OGG, and more.</span>
+                  <span className="file-hint">Supports WAV, FLAC, AIFF, MP3, OGG, and more. Select multiple files for batch processing.</span>
                 </>
               )}
             </div>
           </label>
         </div>
+        {files.length > 1 && (
+          <ul className="file-list">
+            {files.map((f, i) => (
+              <li key={`${f.name}-${i}`} className="file-list-item">
+                <span className="file-list-name">{f.name}</span>
+                <span className="file-list-size">{formatSize(f.size)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="section">

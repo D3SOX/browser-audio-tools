@@ -2,7 +2,7 @@ import type { ChangeEvent, DragEvent } from "react";
 import { formatSize } from "../utils/formatSize";
 
 type AudioFilePickerProps = {
-  file: File | null;
+  files: File[];
   dragOver: boolean;
   onDrop: (e: DragEvent) => void;
   onDragOver: (e: DragEvent) => void;
@@ -10,18 +10,21 @@ type AudioFilePickerProps = {
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 };
 
-export function AudioFilePicker({ file, dragOver, onDrop, onDragOver, onDragLeave, onChange }: AudioFilePickerProps) {
+export function AudioFilePicker({ files, dragOver, onDrop, onDragOver, onDragLeave, onChange }: AudioFilePickerProps) {
+  const hasFiles = files.length > 0;
+  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+
   return (
     <section className="section">
       <h2 className="section-title">
         <span className="step-number">2</span>
-        Choose an audio file
+        Choose audio files
       </h2>
-      <div className={`file-dropzone ${dragOver ? "drag-over" : ""} ${file ? "has-file" : ""}`} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}>
-        <input type="file" accept="audio/*" onChange={onChange} className="file-input-hidden" id="file-input" />
+      <div className={`file-dropzone ${dragOver ? "drag-over" : ""} ${hasFiles ? "has-file" : ""}`} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}>
+        <input type="file" accept="audio/*" multiple onChange={onChange} className="file-input-hidden" id="file-input" />
         <label htmlFor="file-input" className="file-dropzone-label">
           <div className="file-icon">
-            {file ? (
+            {hasFiles ? (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 12l2 2 4-4" />
                 <circle cx="12" cy="12" r="10" />
@@ -35,20 +38,32 @@ export function AudioFilePicker({ file, dragOver, onDrop, onDragOver, onDragLeav
             )}
           </div>
           <div className="file-text">
-            {file ? (
+            {hasFiles ? (
               <>
-                <span className="file-name">{file.name}</span>
-                <span className="file-size">{formatSize(file.size)}</span>
+                <span className="file-name">
+                  {files.length === 1 ? files[0]!.name : `${files.length} files selected`}
+                </span>
+                <span className="file-size">{formatSize(totalSize)}</span>
               </>
             ) : (
               <>
                 <span className="file-cta">Click to browse or drag & drop</span>
-                <span className="file-hint">MP3, M4A, WAV preferred</span>
+                <span className="file-hint">MP3, M4A, WAV preferred. Select multiple files for batch processing.</span>
               </>
             )}
           </div>
         </label>
       </div>
+      {files.length > 1 && (
+        <ul className="file-list">
+          {files.map((f, i) => (
+            <li key={`${f.name}-${i}`} className="file-list-item">
+              <span className="file-list-name">{f.name}</span>
+              <span className="file-list-size">{formatSize(f.size)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
