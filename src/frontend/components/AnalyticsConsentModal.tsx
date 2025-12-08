@@ -16,7 +16,7 @@ export function AnalyticsConsentModal({ onAccept, onDecline }: Props) {
           <button type="button" className="btn btn-secondary" onClick={onDecline}>
             No thanks
           </button>
-          <button type="button" className="btn btn-primary" onClick={onAccept}>
+          <button type="button" className="btn btn-secondary" onClick={onAccept}>
             Allow analytics
           </button>
         </div>
