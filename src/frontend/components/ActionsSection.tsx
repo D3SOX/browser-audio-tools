@@ -18,6 +18,8 @@ type ActionsSectionProps = {
   onReset: () => void;
 };
 
+const isAiffFile = (name?: string | null) => !!name && /\.aiff?$/i.test(name);
+
 export function ActionsSection({
   processing,
   loadingMetadata,
@@ -108,8 +110,17 @@ export function ActionsSection({
                   </div>
                 ) : (
                   <div key={item.url} className="preview-item">
-                    <audio controls src={item.url} />
-                    <span className="preview-name">{item.name}</span>
+                    {isAiffFile(item.name) ? (
+                      <>
+                        <span className="preview-name">{item.name}</span>
+                        <span className="preview-note">Preview not available for AIFF. Please download to listen.</span>
+                      </>
+                    ) : (
+                      <>
+                        <audio controls src={item.url} />
+                        <span className="preview-name">{item.name}</span>
+                      </>
+                    )}
                   </div>
                 )
               )}
@@ -117,7 +128,13 @@ export function ActionsSection({
           )}
           {!batchPreviews && previewUrl && (
             <div className="result-preview">
-              {operation === "cover" || operation === "visualize" ? <img src={previewUrl} alt="Preview" /> : <audio controls src={previewUrl} />}
+              {operation === "cover" || operation === "visualize" ? (
+                <img src={previewUrl} alt="Preview" />
+              ) : isAiffFile(downloadName) ? (
+                <p className="preview-note">Preview not available for AIFF. Please download to listen.</p>
+              ) : (
+                <audio controls src={previewUrl} />
+              )}
             </div>
           )}
         </div>
