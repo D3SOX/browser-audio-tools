@@ -13,6 +13,9 @@ export function OutputFilenameSection({
   onAutoFilenameChange,
   placeholder,
 }: OutputFilenameSectionProps) {
+  // Strip .mp3 from placeholder since we show it as a suffix
+  const basePlaceholder = placeholder.replace(/\.mp3$/i, "");
+
   return (
     <section className="section">
       <h2 className="section-title">
@@ -22,14 +25,17 @@ export function OutputFilenameSection({
       <div className="options-grid">
         <div className="input-group">
           <label htmlFor="outputFilename">Filename</label>
-          <input
-            id="outputFilename"
-            type="text"
-            value={outputFilename}
-            onChange={(e) => onFilenameChange(e.target.value)}
-            disabled={useAutoFilename}
-            placeholder={placeholder}
-          />
+          <div className="input-with-suffix">
+            <input
+              id="outputFilename"
+              type="text"
+              value={outputFilename}
+              onChange={(e) => onFilenameChange(e.target.value)}
+              disabled={useAutoFilename}
+              placeholder={basePlaceholder}
+            />
+            <span className="input-suffix">.mp3</span>
+          </div>
         </div>
       </div>
       <label className="checkbox-label output-filename-checkbox">
@@ -38,7 +44,9 @@ export function OutputFilenameSection({
           checked={useAutoFilename}
           onChange={(e) => onAutoFilenameChange(e.target.checked)}
         />
-        <span>Use "Artist - Title.mp3" format</span>
+        <span>
+          Use <strong>Artist - Title</strong> format
+        </span>
       </label>
     </section>
   );

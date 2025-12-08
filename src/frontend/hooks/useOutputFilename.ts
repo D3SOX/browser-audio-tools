@@ -20,25 +20,25 @@ export function useOutputFilename({
   const [outputFilename, setOutputFilenameState] = useState<string>("");
   const [useAutoFilename, setUseAutoFilename] = useState(false);
 
-  // Helper to generate "Artist - Title.mp3" filename
+  // Helper to generate "Artist - Title" base filename (without extension)
   const getAutoFilename = useCallback((meta: ID3Metadata) => {
     const artist = meta.artist.trim();
     const title = meta.title.trim();
     if (artist && title) {
       // Sanitize filename (remove characters not allowed in filenames)
       const sanitize = (s: string) => s.replace(/[<>:"/\\|?*]/g, "_");
-      return `${sanitize(artist)} - ${sanitize(title)}.mp3`;
+      return `${sanitize(artist)} - ${sanitize(title)}`;
     }
     return "";
   }, []);
 
-  // Helper to get default filename for the current operation
+  // Helper to get default base filename (without extension) for the current operation
   const getDefaultFilename = useCallback(() => {
     if (operation === "retag-wav" && mp3SourceFile) {
-      return mp3SourceFile.name.replace(/\.mp3$/i, "") + ".mp3";
+      return mp3SourceFile.name.replace(/\.mp3$/i, "");
     }
     if (operation === "retag" && retagFile) {
-      return retagFile.name.replace(/\.mp3$/i, "") + "_retagged.mp3";
+      return retagFile.name.replace(/\.mp3$/i, "") + "_retagged";
     }
     return "";
   }, [operation, mp3SourceFile, retagFile]);
@@ -68,8 +68,10 @@ export function useOutputFilename({
   }, [operation, mp3SourceFile, retagFile, useAutoFilename, getDefaultFilename]);
 
   // Setter that disables auto-format when manually editing
+  // Also strips .mp3 extension if user types it (since it's shown as a fixed suffix)
   const setOutputFilename = useCallback((value: string) => {
-    setOutputFilenameState(value);
+    const base = value.replace(/\.mp3$/i, "");
+    setOutputFilenameState(base);
     // Disable auto-format when user manually edits
     setUseAutoFilename(false);
   }, []);

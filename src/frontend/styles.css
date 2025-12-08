@@ -627,6 +627,43 @@ select:disabled {
   cursor: not-allowed;
 }
 
+/* ===== Input with Fixed Suffix ===== */
+.input-with-suffix {
+  display: flex;
+  align-items: stretch;
+}
+
+.input-with-suffix input {
+  flex: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+  min-width: 0;
+}
+
+.input-suffix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-hint);
+  background: var(--input-disabled-bg);
+  border: 1px solid var(--input-border);
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  user-select: none;
+}
+
+.input-with-suffix input:focus + .input-suffix {
+  border-color: var(--text-muted);
+}
+
+.input-with-suffix input:disabled + .input-suffix {
+  border-color: var(--input-disabled-border);
+  color: var(--input-disabled-text);
+}
+
 select:disabled {
   background-image: none;
 }

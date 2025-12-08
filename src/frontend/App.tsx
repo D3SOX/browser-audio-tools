@@ -814,11 +814,11 @@ export default function App() {
           });
         }
       } else if (activeOperation === "retag-wav") {
-        // Use custom filename if provided, otherwise fall back to default
-        const defaultName = mp3SourceFile!.name.replace(/\.mp3$/i, "") + ".mp3";
-        const outputName = outputFilename.trim() || defaultName;
-        // Ensure .mp3 extension
-        const finalName = outputName.endsWith(".mp3") ? outputName : outputName + ".mp3";
+        // Use custom filename if provided, otherwise fall back to default base name
+        const defaultBase = mp3SourceFile!.name.replace(/\.mp3$/i, "");
+        const baseFilename = outputFilename.trim() || defaultBase;
+        // Always append .mp3 extension (outputFilename stores base name only)
+        const finalName = `${baseFilename}.mp3`;
         const result = await convertWavToMp3(wavFile!, mp3SourceFile!, metadata, finalName, onProgress, convertCover ?? undefined);
         const url = URL.createObjectURL(result.blob);
         replaceOperationResult(activeOperation, {
@@ -869,18 +869,18 @@ export default function App() {
           });
         }
       } else if (activeOperation === "retag") {
-        // Use custom filename if provided
-        const defaultName = retagFile!.name.replace(/\.mp3$/i, "") + "_retagged.mp3";
-        const customName = outputFilename.trim();
-        // Ensure .mp3 extension if custom name provided
-        const finalName = customName ? (customName.endsWith(".mp3") ? customName : customName + ".mp3") : undefined;
+        // Use custom filename if provided, otherwise fall back to default base name
+        const defaultBase = retagFile!.name.replace(/\.mp3$/i, "") + "_retagged";
+        const baseFilename = outputFilename.trim() || defaultBase;
+        // Always append .mp3 extension (outputFilename stores base name only)
+        const finalName = `${baseFilename}.mp3`;
         const result = await retagMp3(retagFile!, retagMetadata, onProgress, retagCover ?? undefined, finalName);
         const url = URL.createObjectURL(result.blob);
         replaceOperationResult(activeOperation, {
           status: "MP3 retagged with new metadata. Ready to download.",
           error: null,
           downloadUrl: url,
-          downloadName: finalName ?? result.filename,
+          downloadName: finalName,
           previewUrl: url,
           batchPreviews: null,
           progress: null,
