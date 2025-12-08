@@ -7,7 +7,7 @@ export function AnalyticsConsentModal({ onAccept, onDecline }: Props) {
   return (
     <div className="consent-modal-backdrop">
       <div className="consent-modal">
-        <h2 className="consent-modal-title">Allow privacy-friendly analytics?</h2>
+        <h2 className="consent-modal-title">Help improve this tool and allow privacy-friendly analytics?</h2>
         <p className="consent-modal-text">
           We use Vercel Web Analytics and Speed Insights (no cookies) to learn what
           works and fix slow spots.
