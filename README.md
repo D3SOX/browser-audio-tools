@@ -41,7 +41,7 @@ This is a fully static site (no serverless functions needed):
 - **Retag WAV into MP3**: Copy tags/artwork from an MP3 source onto a WAV render, output 320kbps MP3
 - **Convert Audio**: Convert between audio formats with advanced options
   - Input: WAV, FLAC, AIFF, MP3, OGG, and more
-  - Output: MP3, OGG, AAC (lossy) or WAV, FLAC, AIFF (lossless)
+  - Output: MP3, OGG (lossy) or WAV, FLAC, AIFF (lossless)
   - Configurable bitrate, sample rate, and channels
 - **Retag MP3**: Edit ID3v2 tags on existing MP3 files without re-encoding
 - **Audio Trimming**: Visually select a region, trim to it, and export in any supported format with optional silence removal (threshold + duration)

@@ -7,6 +7,7 @@ type GenericConvertSectionProps = {
   dragOver: boolean;
   options: GenericConvertOptions;
   isLosslessFormat: boolean;
+  sampleRateOptions: SampleRate[];
   onDrop: (e: DragEvent) => void;
   onDragOver: (e: DragEvent) => void;
   onDragLeave: (e: DragEvent) => void;
@@ -19,6 +20,7 @@ export function GenericConvertSection({
   dragOver,
   options,
   isLosslessFormat,
+  sampleRateOptions,
   onDrop,
   onDragOver,
   onDragLeave,
@@ -105,7 +107,6 @@ export function GenericConvertSection({
               <optgroup label="Lossy">
                 <option value="mp3">MP3</option>
                 <option value="ogg">OGG Vorbis</option>
-                <option value="aac">AAC (M4A)</option>
               </optgroup>
               <optgroup label="Lossless">
                 <option value="wav">WAV</option>
@@ -147,9 +148,11 @@ export function GenericConvertSection({
               value={options.sampleRate}
               onChange={(e) => onOptionChange("sampleRate", Number(e.target.value) as SampleRate)}
             >
-              <option value={44100}>44.1 kHz</option>
-              <option value={48000}>48 kHz</option>
-              <option value={96000}>96 kHz</option>
+              {sampleRateOptions.map((rate) => (
+                <option key={rate} value={rate}>
+                  {rate / 1000} kHz
+                </option>
+              ))}
             </select>
           </div>
           <div className="input-group">

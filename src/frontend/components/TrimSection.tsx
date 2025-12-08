@@ -434,7 +434,6 @@ export function TrimSection({
                 <optgroup label="Lossy">
                   <option value="mp3">MP3</option>
                   <option value="ogg">OGG Vorbis</option>
-                  <option value="aac">AAC (M4A)</option>
                 </optgroup>
                 <optgroup label="Lossless">
                   <option value="wav">WAV</option>

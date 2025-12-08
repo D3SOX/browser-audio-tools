@@ -341,8 +341,8 @@ export interface ConvertOptions {
   track?: string;
 }
 
-// Generic converter types
-export type OutputFormat = "mp3" | "ogg" | "aac" | "wav" | "flac" | "aiff";
+// Generic converter types (AAC removed due to wasm encoder issues)
+export type OutputFormat = "mp3" | "ogg" | "wav" | "flac" | "aiff";
 export type SampleRate = 44100 | 48000 | 96000;
 export type Channels = 1 | 2;
 
@@ -366,11 +366,57 @@ export interface TrimOptions {
 const FORMAT_CONFIG: Record<OutputFormat, { codec: string; ext: string; mime: string; lossless: boolean }> = {
   mp3: { codec: "libmp3lame", ext: "mp3", mime: "audio/mpeg", lossless: false },
   ogg: { codec: "libvorbis", ext: "ogg", mime: "audio/ogg", lossless: false },
-  aac: { codec: "aac", ext: "m4a", mime: "audio/mp4", lossless: false },
   wav: { codec: "pcm_s16le", ext: "wav", mime: "audio/wav", lossless: true },
   flac: { codec: "flac", ext: "flac", mime: "audio/flac", lossless: true },
   aiff: { codec: "pcm_s16be", ext: "aiff", mime: "audio/aiff", lossless: true },
 };
+
+// Compatibility guardrails: avoid encoder/decoder failures by only allowing
+// sample rate and channel combinations that are broadly supported in browsers
+// for each output format.
+const FORMAT_CAPABILITIES: Record<OutputFormat, { sampleRates: SampleRate[]; channels: Channels[] }> = {
+  mp3: { sampleRates: [44100, 48000], channels: [1, 2] },
+  // Vorbis supports higher rates; 96k kept for hi-res, 44.1/48 for compatibility.
+  ogg: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
+  wav: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
+  flac: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
+  aiff: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
+};
+
+const VORBIS_Q_FOR_BITRATE: Record<string, number> = {
+  "96k": 2.7,
+  "128k": 4,
+  "160k": 4.8,
+  "192k": 5.5,
+  "256k": 6.5,
+  "320k": 7.5,
+};
+
+function parseBitrateKbps(bitrate: string): string {
+  const match = /^(\d+)(k)$/i.exec(bitrate.trim());
+  if (!match) {
+    throw new Error(`Bitrate must look like "128k", got "${bitrate}"`);
+  }
+  return `${match[1]}k`.toLowerCase();
+}
+
+function assertGenericConvertCompatibility(options: GenericConvertOptions) {
+  const caps = FORMAT_CAPABILITIES[options.format];
+  if (!caps.sampleRates.includes(options.sampleRate)) {
+    throw new Error(
+      `${options.format.toUpperCase()} supports sample rates ${caps.sampleRates.join(
+        " / "
+      )}. Please pick one of those values.`
+    );
+  }
+  if (!caps.channels.includes(options.channels)) {
+    throw new Error(
+      `${options.format.toUpperCase()} supports channels ${caps.channels.join(
+        " or "
+      )}. Please pick a supported value.`
+    );
+  }
+}
 
 export async function convertAudio(
   input: Uint8Array,
@@ -379,6 +425,9 @@ export async function convertAudio(
   outputBaseName?: string,
   onProgress?: ProgressCallback
 ): Promise<ProcessResult> {
+  assertGenericConvertCompatibility(options);
+  const normalizedBitrate = parseBitrateKbps(options.bitrate);
+
   const ff = await ensureFFmpegLoaded();
 
   const config = FORMAT_CONFIG[options.format];
@@ -392,25 +441,24 @@ export async function convertAudio(
   const args = [
     "-i",
     inputName,
-    "-c:a",
-    config.codec,
   ];
 
-  // Only add bitrate for lossy formats
-  if (!config.lossless) {
-    args.push("-b:a", options.bitrate);
-  }
-
   args.push(
+    "-c:a",
+    config.codec,
     "-ar",
     String(options.sampleRate),
     "-ac",
     String(options.channels),
   );
 
-  // AAC needs special container handling
-  if (options.format === "aac") {
-    args.push("-f", "ipod"); // M4A container
+  // Vorbis: prefer quality scale for stability across mono/stereo and bitrates
+  if (options.format === "ogg") {
+    const quality = VORBIS_Q_FOR_BITRATE[normalizedBitrate] ?? 4;
+    args.push("-qscale:a", String(quality));
+  } else if (!config.lossless) {
+    // Lossy formats: set explicit bitrate
+    args.push("-b:a", normalizedBitrate);
   }
 
   args.push("-y", outName);
@@ -420,6 +468,11 @@ export async function convertAudio(
     const data = await ff.readFile(outName);
     if (!(data instanceof Uint8Array)) {
       throw new Error("Unexpected ffmpeg output");
+    }
+    if (data.length === 0) {
+      throw new Error(
+        `FFmpeg produced an empty ${options.format.toUpperCase()} file. Try 44.1/48 kHz and a standard bitrate.`
+      );
     }
     return {
       data,
@@ -577,11 +630,6 @@ export async function trimAudio(
   // Bitrate for lossy formats
   if (!config.lossless) {
     args.push("-b:a", options.bitrate);
-  }
-
-  // AAC needs special container handling
-  if (options.format === "aac") {
-    args.push("-f", "ipod");
   }
 
   args.push("-y", outName);

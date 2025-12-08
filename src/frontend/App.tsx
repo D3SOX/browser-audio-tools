@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
-import type { ProcessOptions, ID3Metadata, GenericConvertOptions, OutputFormat, ProgressCallback, BatchProgressCallback, ApiResult } from "./api";
+import type {
+  ProcessOptions,
+  ID3Metadata,
+  GenericConvertOptions,
+  OutputFormat,
+  SampleRate,
+  ProgressCallback,
+  BatchProgressCallback,
+  ApiResult,
+} from "./api";
 import { extractCover, processAudio, readMetadataFromFile, convertWavToMp3, convertAudio, retagMp3, processAudioBatch, extractCoverBatch, convertAudioBatch, trimAudio } from "./api";
 import "./styles.css";
 import { useTheme } from "./hooks/useTheme";
@@ -37,6 +46,14 @@ const defaultGenericConvertOptions: GenericConvertOptions = {
   bitrate: "320k",
   sampleRate: 48000,
   channels: 2,
+};
+
+const SAMPLE_RATES_BY_FORMAT: Record<OutputFormat, SampleRate[]> = {
+  mp3: [44100, 48000],
+  ogg: [44100, 48000],
+  wav: [44100, 48000, 96000],
+  flac: [44100, 48000, 96000],
+  aiff: [44100, 48000, 96000],
 };
 
 const defaultTrimOptions: TrimOptions = {
@@ -309,7 +326,16 @@ export default function App() {
   );
 
   const updateGenericConvertOption = <K extends keyof GenericConvertOptions>(key: K, value: GenericConvertOptions[K]) => {
-    setGenericConvertOptions((prev) => ({ ...prev, [key]: value }));
+    setGenericConvertOptions((prev) => {
+      const next = { ...prev, [key]: value };
+      // Enforce safe sample rates per format (avoid invalid encodes/playback)
+      const allowedRates = SAMPLE_RATES_BY_FORMAT[next.format];
+      const defaultRate = allowedRates[0];
+      if (defaultRate && !allowedRates.includes(next.sampleRate)) {
+        next.sampleRate = defaultRate;
+      }
+      return next;
+    });
   };
 
   const handleRetagFileSelect = useCallback(
@@ -796,6 +822,7 @@ export default function App() {
               dragOver={dragOverGeneric}
               options={genericConvertOptions}
               isLosslessFormat={isLosslessFormat}
+              sampleRateOptions={SAMPLE_RATES_BY_FORMAT[genericConvertOptions.format]}
               onDrop={handleGenericConvertDrop}
               onDragOver={(e) => {
                 e.preventDefault();
