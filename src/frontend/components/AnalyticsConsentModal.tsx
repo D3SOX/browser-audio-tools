@@ -9,8 +9,13 @@ export function AnalyticsConsentModal({ onAccept, onDecline }: Props) {
       <div className="consent-modal">
         <h2 className="consent-modal-title">Help improve this tool and allow privacy-friendly analytics?</h2>
         <p className="consent-modal-text">
-          We use Vercel Web Analytics and Speed Insights (no cookies) to learn what
-          works and fix slow spots.
+          We use <strong>Vercel Web Analytics</strong> and <strong>Speed Insights</strong> (<strong>no cookies</strong>, <strong>GDPR-aligned</strong>) to see what works and fix slow spots.
+        </p>
+        <p className="consent-modal-text">
+        These tools don’t require extra consent, but we prefer to be <strong>transparent</strong> and let you <strong>choose to opt in</strong>.
+        </p>
+        <p className="consent-modal-text">
+          Here’s exactly what gets sent (and what never does):
         </p>
         <ul className="consent-modal-list">
           <li>Aggregated page views, button clicks, and Web Vitals (route/URL only).</li>
