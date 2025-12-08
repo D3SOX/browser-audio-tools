@@ -1556,3 +1556,95 @@ select:disabled {
   width: 2rem;
   height: 2rem;
 }
+
+/* ===== Analytics Consent Modal ===== */
+.consent-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.consent-modal {
+  width: 100%;
+  max-width: 400px;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  box-shadow: var(--card-shadow);
+  animation: consent-modal-enter 0.2s ease-out;
+}
+
+@keyframes consent-modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.consent-modal-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.consent-modal-text {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  color: var(--text-hint);
+  line-height: 1.5;
+}
+
+.consent-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+/* ===== Analytics Toggle (Footer) ===== */
+.footer-analytics-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.analytics-toggle-label {
+  font-size: 0.8rem;
+  color: var(--text-hint);
+}
+
+.analytics-toggle-btn {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--btn-secondary-border);
+  border-radius: 6px;
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.analytics-toggle-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.analytics-toggle-btn.active {
+  background: var(--btn-primary-bg);
+  color: white;
+  border-color: transparent;
+}

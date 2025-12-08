@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
+import { useAnalyticsConsent } from "./hooks/useAnalyticsConsent";
+import { AnalyticsConsentModal } from "./components/AnalyticsConsentModal";
 import type {
   ProcessOptions,
   ID3Metadata,
@@ -104,6 +106,7 @@ const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
 
 export default function App() {
   const { theme, setTheme } = useTheme();
+  const { consent, setConsent } = useAnalyticsConsent();
   const [files, setFiles] = useState<File[]>([]);
   const [operation, setOperation] = useState<Operation>("noise");
   const [options, setOptions] = useState<ProcessOptions>(defaultOptions);
@@ -874,8 +877,18 @@ export default function App() {
 
   return (
     <div className="app-wrapper">
-      <SpeedInsights />
-      <Analytics />
+      {consent === true && (
+        <>
+          <SpeedInsights />
+          <Analytics />
+        </>
+      )}
+      {consent === null && (
+        <AnalyticsConsentModal
+          onAccept={() => setConsent(true)}
+          onDecline={() => setConsent(false)}
+        />
+      )}
       <div className="app-container">
         <Hero theme={theme} setTheme={setTheme} />
 
@@ -1046,7 +1059,10 @@ export default function App() {
             onReset={handleReset}
           />
 
-          <Footer />
+          <Footer
+            analyticsEnabled={consent === true}
+            onToggleAnalytics={() => setConsent(consent !== true)}
+          />
         </main>
       </div>
     </div>
