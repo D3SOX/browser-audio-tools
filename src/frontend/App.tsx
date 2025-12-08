@@ -3,6 +3,7 @@ import type { ChangeEvent, DragEvent } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { useAnalyticsConsent } from "./hooks/useAnalyticsConsent";
+import { useOutputFilename } from "./hooks/useOutputFilename";
 import { AnalyticsConsentModal } from "./components/AnalyticsConsentModal";
 import type {
   ProcessOptions,
@@ -27,6 +28,7 @@ import { NoiseOptions } from "./components/NoiseOptions";
 import { ActionsSection } from "./components/ActionsSection";
 import { TrimSection, type TrimOptions } from "./components/TrimSection";
 import { VisualizerSection, type VisualizerHandle } from "./components/VisualizerSection";
+import { OutputFilenameSection } from "./components/OutputFilenameSection";
 import { Footer } from "./components/Footer";
 import type { Operation } from "./types";
 
@@ -172,9 +174,20 @@ export default function App() {
   const [visualizerFile, setVisualizerFile] = useState<File | null>(null);
   const [dragOverVisualizer, setDragOverVisualizer] = useState(false);
 
-  // Output filename state (shared by retag-wav and retag)
-  const [outputFilename, setOutputFilename] = useState<string>("");
-  const [useAutoFilename, setUseAutoFilename] = useState(false);
+  // Output filename hook (shared by retag-wav and retag)
+  const {
+    outputFilename,
+    setOutputFilename,
+    useAutoFilename,
+    setUseAutoFilename,
+    reset: resetOutputFilename,
+  } = useOutputFilename({
+    operation,
+    metadata,
+    retagMetadata,
+    mp3SourceFile,
+    retagFile,
+  });
 
   const isLosslessFormat = LOSSLESS_FORMATS.includes(genericConvertOptions.format);
   const isTrimLosslessFormat = LOSSLESS_FORMATS.includes(trimOptions.format);
@@ -189,53 +202,6 @@ export default function App() {
       window.history.replaceState(null, "", `#${operation}`);
     }
   }, []);
-
-  // Helper to generate "Artist - Title.mp3" filename
-  const getAutoFilename = useCallback((meta: ID3Metadata) => {
-    const artist = meta.artist.trim();
-    const title = meta.title.trim();
-    if (artist && title) {
-      // Sanitize filename (remove characters not allowed in filenames)
-      const sanitize = (s: string) => s.replace(/[<>:"/\\|?*]/g, "_");
-      return `${sanitize(artist)} - ${sanitize(title)}.mp3`;
-    }
-    return "";
-  }, []);
-
-  // Helper to get default filename for the current operation
-  const getDefaultFilename = useCallback(() => {
-    if (operation === "retag-wav" && mp3SourceFile) {
-      return mp3SourceFile.name.replace(/\.mp3$/i, "") + ".mp3";
-    }
-    if (operation === "retag" && retagFile) {
-      return retagFile.name.replace(/\.mp3$/i, "") + "_retagged.mp3";
-    }
-    return "";
-  }, [operation, mp3SourceFile, retagFile]);
-
-  // Update output filename when useAutoFilename changes or when metadata changes (if auto is on)
-  useEffect(() => {
-    if (operation !== "retag-wav" && operation !== "retag") return;
-
-    if (useAutoFilename) {
-      const meta = operation === "retag-wav" ? metadata : retagMetadata;
-      const autoName = getAutoFilename(meta);
-      if (autoName) {
-        setOutputFilename(autoName);
-      } else {
-        // Fall back to default if artist/title are empty
-        setOutputFilename(getDefaultFilename());
-      }
-    }
-  }, [operation, useAutoFilename, metadata, retagMetadata, getAutoFilename, getDefaultFilename]);
-
-  // Set default filename when file is selected (only if not using auto-format)
-  useEffect(() => {
-    if (operation !== "retag-wav" && operation !== "retag") return;
-    if (useAutoFilename) return; // Let the auto-format effect handle it
-
-    setOutputFilename(getDefaultFilename());
-  }, [operation, mp3SourceFile, retagFile, useAutoFilename, getDefaultFilename]);
 
   const replaceOperationResult = useCallback(
     (op: Operation, nextResult: OperationResult) => {
@@ -705,8 +671,7 @@ export default function App() {
       });
       return createEmptyResultsMap();
     });
-    setOutputFilename("");
-    setUseAutoFilename(false);
+    resetOutputFilename();
     setStatus(null);
     setError(null);
     setDownloadUrl(null);
@@ -1133,37 +1098,13 @@ export default function App() {
           )}
 
           {(operation === "retag-wav" || operation === "retag") && (
-            <section className="section">
-              <h2 className="section-title">
-                <span className="step-number">4</span>
-                Output filename
-              </h2>
-              <div className="options-grid">
-                <div className="input-group">
-                  <label htmlFor="outputFilename">Filename</label>
-                  <input
-                    id="outputFilename"
-                    type="text"
-                    value={outputFilename}
-                    onChange={(e) => {
-                      setOutputFilename(e.target.value);
-                      // Disable auto-format when user manually edits
-                      if (useAutoFilename) setUseAutoFilename(false);
-                    }}
-                    disabled={useAutoFilename}
-                    placeholder={operation === "retag-wav" ? "output.mp3" : "output_retagged.mp3"}
-                  />
-                </div>
-              </div>
-              <label className="checkbox-label output-filename-checkbox">
-                <input
-                  type="checkbox"
-                  checked={useAutoFilename}
-                  onChange={(e) => setUseAutoFilename(e.target.checked)}
-                />
-                <span>Use "Artist - Title.mp3" format</span>
-              </label>
-            </section>
+            <OutputFilenameSection
+              outputFilename={outputFilename}
+              onFilenameChange={setOutputFilename}
+              useAutoFilename={useAutoFilename}
+              onAutoFilenameChange={setUseAutoFilename}
+              placeholder={operation === "retag-wav" ? "output.mp3" : "output_retagged.mp3"}
+            />
           )}
 
           <ActionsSection
