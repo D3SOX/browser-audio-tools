@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 import type {
   ProcessOptions,
   ID3Metadata,
@@ -874,6 +875,7 @@ export default function App() {
   return (
     <div className="app-wrapper">
       <SpeedInsights />
+      <Analytics />
       <div className="app-container">
         <Hero theme={theme} setTheme={setTheme} />
 
