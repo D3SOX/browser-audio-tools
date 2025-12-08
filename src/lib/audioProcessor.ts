@@ -364,6 +364,7 @@ export interface ConvertOptions {
 
 // Generic converter types (AAC removed due to wasm encoder issues)
 export type OutputFormat = "mp3" | "ogg" | "aac" | "wav" | "flac" | "aiff";
+export type TrimOutputFormat = OutputFormat | "source";
 export type SampleRate = 44100 | 48000 | 96000;
 export type Channels = 1 | 2 | "auto";
 
@@ -377,7 +378,7 @@ export interface GenericConvertOptions {
 export interface TrimOptions {
   startTime: number; // seconds
   endTime: number; // seconds
-  format: OutputFormat;
+  format: TrimOutputFormat;
   bitrate: string;
   removeSilence: boolean;
   silenceThreshold: number; // dB (e.g., -50)
@@ -440,6 +441,20 @@ function assertGenericConvertCompatibility(options: GenericConvertOptions) {
     );
   }
 }
+
+const INPUT_EXT_TO_OUTPUT_FORMAT: Record<string, OutputFormat> = {
+  mp3: "mp3",
+  mpeg: "mp3",
+  ogg: "ogg",
+  oga: "ogg",
+  aac: "aac",
+  m4a: "aac",
+  wav: "wav",
+  wave: "wav",
+  flac: "flac",
+  aiff: "aiff",
+  aif: "aiff",
+};
 
 export async function convertAudio(
   input: Uint8Array,
@@ -638,11 +653,17 @@ export async function trimAudio(
   const ff = await ensureFFmpegLoaded();
   const logs = createLogCollector(ff);
 
-  const config = FORMAT_CONFIG[options.format];
   const inputExt = inputFilename.split(".").pop()?.toLowerCase() ?? "mp3";
+  const sourceFormat = INPUT_EXT_TO_OUTPUT_FORMAT[inputExt];
+  const targetFormat = options.format === "source" ? sourceFormat : options.format;
+  if (!targetFormat) {
+    throw new Error(`Keeping the original format is not supported for ".${inputExt}" files yet.`);
+  }
+  const config = FORMAT_CONFIG[targetFormat];
   const inputName = `input.${inputExt}`;
   const baseName = outputBaseName ?? inputFilename.replace(/\.[^.]+$/, "");
-  const outName = `${baseName}_trimmed.${config.ext}`;
+  const outputExt = options.format === "source" ? inputExt : config.ext;
+  const outName = `${baseName}_trimmed.${outputExt}`;
 
   await ff.writeFile(inputName, input);
 
@@ -680,13 +701,24 @@ export async function trimAudio(
     args.push("-af", filters.join(","));
   }
 
-  // Output codec settings (audio only)
-  args.push("-map", "0:a:0", "-vn");
-  args.push("-c:a", config.codec);
+  const isPassthrough = options.format === "source" && filters.length === 0;
 
-  // Bitrate for lossy formats
-  if (!config.lossless) {
-    args.push("-b:a", options.bitrate);
+  if (isPassthrough) {
+    // Copy the original audio (and attachments like cover art) without re-encoding
+    args.push("-map_metadata", "0");
+    args.push("-map", "0:a:0");
+    args.push("-map", "0:v?");
+    args.push("-c", "copy");
+  } else {
+    // Output codec settings (audio only)
+    args.push("-map", "0:a:0", "-vn");
+    args.push("-map_metadata", "0");
+    args.push("-c:a", config.codec);
+
+    // Bitrate for lossy formats when explicitly re-encoding to a new format
+    if (!config.lossless && options.format !== "source") {
+      args.push("-b:a", options.bitrate);
+    }
   }
 
   args.push("-y", outName);

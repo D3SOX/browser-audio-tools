@@ -15,11 +15,22 @@ import {
   type Channels,
   type ProgressCallback,
   type TrimOptions,
+  type TrimOutputFormat,
 } from "../lib/audioProcessor";
 import { zipSync } from "fflate";
 
 export type NoiseType = "white" | "pink";
-export type { ID3Metadata, ConvertOptions, GenericConvertOptions, OutputFormat, SampleRate, Channels, ProgressCallback, TrimOptions };
+export type {
+  ID3Metadata,
+  ConvertOptions,
+  GenericConvertOptions,
+  OutputFormat,
+  SampleRate,
+  Channels,
+  ProgressCallback,
+  TrimOptions,
+  TrimOutputFormat,
+};
 
 export type BatchProgressCallback = (progress: { percent: number; currentFile: number; totalFiles: number }) => void;
 

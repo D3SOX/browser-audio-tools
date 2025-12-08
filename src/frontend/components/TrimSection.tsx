@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
-import type { OutputFormat } from "../api";
+import type { TrimOutputFormat } from "../api";
 import { formatSize } from "../utils/formatSize";
 import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
@@ -9,7 +9,7 @@ import { Checkbox } from "./Checkbox";
 export interface TrimOptions {
   startTime: number;
   endTime: number;
-  format: OutputFormat;
+  format: TrimOutputFormat;
   bitrate: string;
   removeSilence: boolean;
   silenceThreshold: number; // dB
@@ -401,12 +401,15 @@ export function TrimSection({
               <select
                 id="trimOutputFormat"
                 value={options.format}
-                onChange={(e) => updateOption("format", e.target.value as OutputFormat)}
+                onChange={(e) => updateOption("format", e.target.value as TrimOutputFormat)}
               >
+                <optgroup label="Original">
+                  <option value="source">Keep original (no re-encode)</option>
+                </optgroup>
                 <optgroup label="Lossy">
-                <option value="mp3">MP3</option>
-                <option value="ogg">OGG Vorbis</option>
-                <option value="aac">AAC (M4A)</option>
+                  <option value="mp3">MP3</option>
+                  <option value="ogg">OGG Vorbis</option>
+                  <option value="aac">AAC (M4A)</option>
                 </optgroup>
                 <optgroup label="Lossless">
                   <option value="wav">WAV</option>
@@ -416,14 +419,26 @@ export function TrimSection({
               </select>
             </div>
 
-            <div className={`input-group ${isLosslessFormat ? "input-group-disabled" : ""}`}>
+            {(() => {
+              const isPassthrough = options.format === "source";
+              const disableBitrate = isLosslessFormat || isPassthrough;
+              return (
+                <div className={`input-group ${disableBitrate ? "input-group-disabled" : ""}`}>
               <label htmlFor="trimBitrate" className="label-with-tooltip">
                 <span>Bitrate</span>
-                {isLosslessFormat && (
+                {disableBitrate && (
                   <span
                     className="tooltip-icon tooltip-icon-active"
-                    data-tooltip="Bitrate is not applicable for lossless formats."
-                    aria-label="Bitrate is not applicable for lossless formats."
+                    data-tooltip={
+                      isPassthrough
+                        ? "Bitrate is preserved when keeping the original format."
+                        : "Bitrate is not applicable for lossless formats."
+                    }
+                    aria-label={
+                      isPassthrough
+                        ? "Bitrate is preserved when keeping the original format."
+                        : "Bitrate is not applicable for lossless formats."
+                    }
                     role="tooltip"
                   >
                     i
@@ -434,7 +449,7 @@ export function TrimSection({
                 id="trimBitrate"
                 value={options.bitrate}
                 onChange={(e) => updateOption("bitrate", e.target.value)}
-                disabled={isLosslessFormat}
+                disabled={disableBitrate}
               >
                 <option value="96k">96 kbps</option>
                 <option value="128k">128 kbps</option>
@@ -442,7 +457,9 @@ export function TrimSection({
                 <option value="256k">256 kbps</option>
                 <option value="320k">320 kbps</option>
               </select>
-            </div>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="silence-removal-section">

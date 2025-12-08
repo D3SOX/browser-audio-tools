@@ -73,7 +73,7 @@ const SAMPLE_RATES_BY_FORMAT: Record<OutputFormat, SampleRate[]> = {
 const defaultTrimOptions: TrimOptions = {
   startTime: 0,
   endTime: 0,
-  format: "mp3",
+  format: "source",
   bitrate: "320k",
   removeSilence: false,
   silenceThreshold: -50,
@@ -192,7 +192,8 @@ export default function App() {
   });
 
   const isLosslessFormat = LOSSLESS_FORMATS.includes(genericConvertOptions.format);
-  const isTrimLosslessFormat = LOSSLESS_FORMATS.includes(trimOptions.format);
+  const isTrimLosslessFormat =
+    trimOptions.format !== "source" && LOSSLESS_FORMATS.includes(trimOptions.format);
 
   useEffect(() => {
     currentOperationRef.current = operation;
@@ -893,7 +894,8 @@ export default function App() {
       } else if (activeOperation === "trim") {
         const result = await trimAudio(trimFile!, trimOptions, onProgress);
         const url = URL.createObjectURL(result.blob);
-        const formatLabel = trimOptions.format.toUpperCase();
+        const resultExt = result.filename.split(".").pop();
+        const formatLabel = resultExt ? resultExt.toUpperCase() : trimOptions.format.toUpperCase();
         const duration = trimOptions.endTime - trimOptions.startTime;
         const silenceInfo = trimOptions.removeSilence ? " with silence removed" : "";
         replaceOperationResult(activeOperation, {
