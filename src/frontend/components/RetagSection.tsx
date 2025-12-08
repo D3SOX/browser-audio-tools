@@ -3,6 +3,12 @@ import type { ID3Metadata } from "../api";
 import { formatSize } from "../utils/formatSize";
 import { CoverArtPicker } from "./CoverArtPicker";
 
+const CheckIcon = () => (
+  <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="2.5,6 5,8.5 9.5,3.5" />
+  </svg>
+);
+
 type RetagSectionProps = {
   file: File | null;
   dragOver: boolean;
@@ -191,13 +197,16 @@ export function RetagSection({
                   const value = getDonorFieldValue(field);
                   const hasValue = value !== null;
                   return (
-                    <label key={field} className={`donor-field-item ${!hasValue ? "donor-field-disabled" : ""}`}>
+                    <label key={field} className={`donor-field-item checkbox-label ${!hasValue ? "donor-field-disabled" : ""}`}>
                       <input
                         type="checkbox"
                         checked={selectedFields.has(field) && hasValue}
                         disabled={!hasValue}
                         onChange={() => toggleField(field)}
                       />
+                      <span className="checkbox-custom">
+                        <CheckIcon />
+                      </span>
                       <span className="donor-field-label">{FIELD_LABELS[field]}</span>
                       {hasValue && field !== "cover" && (
                         <span className="donor-field-value">{value}</span>

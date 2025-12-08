@@ -1,3 +1,5 @@
+import { Checkbox } from "./Checkbox";
+
 type OutputFilenameSectionProps = {
   outputFilename: string;
   onFilenameChange: (value: string) => void;
@@ -38,16 +40,15 @@ export function OutputFilenameSection({
           </div>
         </div>
       </div>
-      <label className="checkbox-label output-filename-checkbox">
-        <input
-          type="checkbox"
-          checked={useAutoFilename}
-          onChange={(e) => onAutoFilenameChange(e.target.checked)}
-        />
+      <Checkbox
+        checked={useAutoFilename}
+        onChange={(e) => onAutoFilenameChange(e.target.checked)}
+        className="output-filename-checkbox"
+      >
         <span>
           Use <strong>Artist - Title</strong> format
         </span>
-      </label>
+      </Checkbox>
     </section>
   );
 }

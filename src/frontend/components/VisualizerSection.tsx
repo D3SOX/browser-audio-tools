@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useImperativeHandle, forwardR
 import type { ChangeEvent, DragEvent } from "react";
 import { formatSize } from "../utils/formatSize";
 import WaveSurfer from "wavesurfer.js";
+import { Checkbox } from "./Checkbox";
 
 export type VisualizerExportResult = {
   blob: Blob;
@@ -354,14 +355,13 @@ export const VisualizerSection = forwardRef<VisualizerHandle, VisualizerSectionP
                   onChange={(e) => setBarHeight(Number(e.target.value))}
                 />
               </div>
-              <label className="checkbox-label visualizer-checkbox">
-                <input
-                  type="checkbox"
-                  checked={normalize}
-                  onChange={(e) => setNormalize(e.target.checked)}
-                />
+              <Checkbox
+                checked={normalize}
+                onChange={(e) => setNormalize(e.target.checked)}
+                className="visualizer-checkbox"
+              >
                 <span>Normalize</span>
-              </label>
+              </Checkbox>
             </div>
           </div>
 

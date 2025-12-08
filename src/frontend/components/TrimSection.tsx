@@ -4,6 +4,7 @@ import type { OutputFormat } from "../api";
 import { formatSize } from "../utils/formatSize";
 import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
+import { Checkbox } from "./Checkbox";
 
 export interface TrimOptions {
   startTime: number;
@@ -473,14 +474,12 @@ export function TrimSection({
           </div>
 
           <div className="silence-removal-section">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={options.removeSilence}
-                onChange={(e) => updateOption("removeSilence", e.target.checked)}
-              />
+            <Checkbox
+              checked={options.removeSilence}
+              onChange={(e) => updateOption("removeSilence", e.target.checked)}
+            >
               <span>Remove silence from selection</span>
-            </label>
+            </Checkbox>
 
             {options.removeSilence && (
               <div className="options-grid silence-options">
