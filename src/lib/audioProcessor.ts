@@ -256,25 +256,44 @@ export async function retagMp3(
   input: Uint8Array,
   metadata: ID3Metadata,
   outputFilename?: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  cover?: Uint8Array
 ): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
 
   const inputName = "input.mp3";
+  const coverName = "cover.jpg";
   const outName = outputFilename ?? "output.mp3";
+  const filesToCleanup = [inputName, outName];
 
   await ff.writeFile(inputName, input);
 
-  const args = [
-    "-i",
-    inputName,
-    "-c",
-    "copy",
-    "-id3v2_version",
-    "3",
-    "-map_metadata",
-    "-1", // Clear existing metadata
-  ];
+  if (cover) {
+    await ff.writeFile(coverName, cover);
+    filesToCleanup.push(coverName);
+  }
+
+  const args = ["-i", inputName];
+
+  if (cover) {
+    args.push("-i", coverName);
+  }
+
+  args.push(
+    "-map", "0:a",
+    "-c:a", "copy",
+    "-id3v2_version", "3",
+    "-map_metadata", "-1" // Clear existing metadata
+  );
+
+  if (cover) {
+    args.push(
+      "-map", "1:v",
+      "-c:v", "copy",
+      "-metadata:s:v", "title=Album cover",
+      "-metadata:s:v", "comment=Cover (front)"
+    );
+  }
 
   if (metadata.title) {
     args.push("-metadata", `title=${metadata.title}`);
@@ -310,7 +329,7 @@ export async function retagMp3(
       error instanceof Error ? error.message : "Failed to retag MP3"
     );
   } finally {
-    cleanupFiles(ff, [inputName, outName]);
+    cleanupFiles(ff, filesToCleanup);
   }
 }
 

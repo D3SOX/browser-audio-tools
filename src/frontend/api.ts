@@ -48,7 +48,7 @@ export async function processAudio(
   const result = await addNoiseAndConcat(input, noiseOpts, onProgress);
 
   return {
-    blob: new Blob([result.data], { type: result.mime }),
+    blob: new Blob([new Uint8Array(result.data)], { type: result.mime }),
     filename: result.filename,
     contentType: result.mime,
   };
@@ -62,7 +62,7 @@ export async function extractCover(
   const result = await extractCoverLib(input, onProgress);
 
   return {
-    blob: new Blob([result.data], { type: result.mime }),
+    blob: new Blob([new Uint8Array(result.data)], { type: result.mime }),
     filename: result.filename,
     contentType: result.mime,
   };
@@ -86,7 +86,7 @@ export async function convertWavToMp3(
   const result = await convertWavLib(wavInput, mp3Source, options, outputFilename, onProgress);
 
   return {
-    blob: new Blob([result.data], { type: result.mime }),
+    blob: new Blob([new Uint8Array(result.data)], { type: result.mime }),
     filename: result.filename,
     contentType: result.mime,
   };
@@ -102,7 +102,7 @@ export async function convertAudio(
   const result = await convertAudioLib(input, file.name, options, outputBaseName, onProgress);
 
   return {
-    blob: new Blob([result.data], { type: result.mime }),
+    blob: new Blob([new Uint8Array(result.data)], { type: result.mime }),
     filename: result.filename,
     contentType: result.mime,
   };
@@ -111,14 +111,15 @@ export async function convertAudio(
 export async function retagMp3(
   file: File,
   metadata: ID3Metadata,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  cover?: Uint8Array
 ): Promise<ApiResult> {
   const input = new Uint8Array(await file.arrayBuffer());
   const outputFilename = file.name.replace(/\.mp3$/i, "") + "_retagged.mp3";
-  const result = await retagMp3Lib(input, metadata, outputFilename, onProgress);
+  const result = await retagMp3Lib(input, metadata, outputFilename, onProgress, cover);
 
   return {
-    blob: new Blob([result.data], { type: result.mime }),
+    blob: new Blob([new Uint8Array(result.data)], { type: result.mime }),
     filename: result.filename,
     contentType: result.mime,
   };

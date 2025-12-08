@@ -100,6 +100,8 @@ export default function App() {
   const [retagMetadata, setRetagMetadata] = useState<ID3Metadata>(defaultMetadata);
   const [loadingRetagMetadata, setLoadingRetagMetadata] = useState(false);
   const [dragOverRetag, setDragOverRetag] = useState(false);
+  const [retagCover, setRetagCover] = useState<Uint8Array | null>(null);
+  const [retagCoverPreviewUrl, setRetagCoverPreviewUrl] = useState<string | null>(null);
 
   // Progress state
   const [progress, setProgress] = useState<number | null>(null);
@@ -246,6 +248,13 @@ export default function App() {
     async (nextFile: File | null) => {
       setRetagFile(nextFile);
       clearResults();
+      // Clean up previous cover preview URL
+      if (retagCoverPreviewUrl) {
+        URL.revokeObjectURL(retagCoverPreviewUrl);
+      }
+      setRetagCover(null);
+      setRetagCoverPreviewUrl(null);
+
       if (nextFile) {
         setLoadingRetagMetadata(true);
         try {
@@ -254,14 +263,22 @@ export default function App() {
         } catch (err) {
           console.error("Failed to read metadata:", err);
           setRetagMetadata(defaultMetadata);
-        } finally {
-          setLoadingRetagMetadata(false);
         }
+        // Try to extract existing cover
+        try {
+          const coverResult = await extractCover(nextFile);
+          const coverData = new Uint8Array(await coverResult.blob.arrayBuffer());
+          setRetagCover(coverData);
+          setRetagCoverPreviewUrl(URL.createObjectURL(coverResult.blob));
+        } catch {
+          // No cover or extraction failed - that's fine
+        }
+        setLoadingRetagMetadata(false);
       } else {
         setRetagMetadata(defaultMetadata);
       }
     },
-    [clearResults]
+    [clearResults, retagCoverPreviewUrl]
   );
 
   const handleRetagDrop = useCallback(
@@ -279,6 +296,23 @@ export default function App() {
   const updateRetagMetadata = <K extends keyof ID3Metadata>(key: K, value: ID3Metadata[K]) => {
     setRetagMetadata((prev) => ({ ...prev, [key]: value }));
   };
+
+  const handleRetagCoverChange = useCallback(
+    async (file: File | null) => {
+      if (retagCoverPreviewUrl) {
+        URL.revokeObjectURL(retagCoverPreviewUrl);
+      }
+      if (file) {
+        const data = new Uint8Array(await file.arrayBuffer());
+        setRetagCover(data);
+        setRetagCoverPreviewUrl(URL.createObjectURL(file));
+      } else {
+        setRetagCover(null);
+        setRetagCoverPreviewUrl(null);
+      }
+    },
+    [retagCoverPreviewUrl]
+  );
 
   const handleFileSelect = useCallback(
     (nextFile: File | null) => {
@@ -328,6 +362,11 @@ export default function App() {
     setGenericConvertOptions(defaultGenericConvertOptions);
     setRetagFile(null);
     setRetagMetadata(defaultMetadata);
+    if (retagCoverPreviewUrl) {
+      URL.revokeObjectURL(retagCoverPreviewUrl);
+    }
+    setRetagCover(null);
+    setRetagCoverPreviewUrl(null);
     setResultsByOperation((prev) => {
       Object.values(prev).forEach((result) => {
         if (result.downloadUrl) URL.revokeObjectURL(result.downloadUrl);
@@ -342,7 +381,7 @@ export default function App() {
     setPreviewUrl(null);
     setProgress(null);
     setProcessing(false);
-  }, []);
+  }, [retagCoverPreviewUrl]);
 
   const submit = async () => {
     const activeOperation = operation;
@@ -439,7 +478,7 @@ export default function App() {
           processing: false,
         });
       } else if (activeOperation === "retag") {
-        const result = await retagMp3(retagFile!, retagMetadata, onProgress);
+        const result = await retagMp3(retagFile!, retagMetadata, onProgress, retagCover ?? undefined);
         const url = URL.createObjectURL(result.blob);
         replaceOperationResult(activeOperation, {
           status: "MP3 retagged with new metadata. Ready to download.",
@@ -531,6 +570,7 @@ export default function App() {
               dragOver={dragOverRetag}
               loadingMetadata={loadingRetagMetadata}
               metadata={retagMetadata}
+              coverPreviewUrl={retagCoverPreviewUrl}
               onDrop={handleRetagDrop}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -542,6 +582,7 @@ export default function App() {
               }}
               onFileChange={handleRetagFileSelect}
               onMetadataChange={updateRetagMetadata}
+              onCoverChange={handleRetagCoverChange}
             />
           )}
 
