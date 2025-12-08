@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
-import type { TrimOutputFormat } from "../api";
+import type { OutputFormat, TrimOutputFormat } from "../api";
+import { formatSupportsCoverArt } from "../api";
 import { formatSize } from "../utils/formatSize";
 import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
@@ -461,6 +462,14 @@ export function TrimSection({
               );
             })()}
           </div>
+
+          {options.format !== "source" && !formatSupportsCoverArt(options.format as OutputFormat) && (
+            <p className="format-warning">
+              ⚠️ {options.format === "ogg"
+                ? "OGG Vorbis does not support embedded cover art (FFmpeg limitation)."
+                : "WAV does not support cover art."}
+            </p>
+          )}
 
           <div className="silence-removal-section">
             <Checkbox

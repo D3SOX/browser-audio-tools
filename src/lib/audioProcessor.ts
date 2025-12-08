@@ -385,14 +385,23 @@ export interface TrimOptions {
   silenceDuration: number; // seconds (minimum silence duration to remove)
 }
 
-const FORMAT_CONFIG: Record<OutputFormat, { codec: string; ext: string; mime: string; lossless: boolean }> = {
-  mp3: { codec: "libmp3lame", ext: "mp3", mime: "audio/mpeg", lossless: false },
-  ogg: { codec: "libvorbis", ext: "ogg", mime: "audio/ogg", lossless: false },
-  aac: { codec: "aac", ext: "m4a", mime: "audio/mp4", lossless: false },
-  wav: { codec: "pcm_s16le", ext: "wav", mime: "audio/wav", lossless: true },
-  flac: { codec: "flac", ext: "flac", mime: "audio/flac", lossless: true },
-  aiff: { codec: "pcm_s16be", ext: "aiff", mime: "audio/aiff", lossless: true },
+const FORMAT_CONFIG: Record<OutputFormat, { codec: string; ext: string; mime: string; lossless: boolean; supportsCoverArt: boolean }> = {
+  mp3: { codec: "libmp3lame", ext: "mp3", mime: "audio/mpeg", lossless: false, supportsCoverArt: true },
+  ogg: { codec: "libvorbis", ext: "ogg", mime: "audio/ogg", lossless: false, supportsCoverArt: false }, // FFmpeg cannot embed art in OGG
+  aac: { codec: "aac", ext: "m4a", mime: "audio/mp4", lossless: false, supportsCoverArt: true },
+  wav: { codec: "pcm_s16le", ext: "wav", mime: "audio/wav", lossless: true, supportsCoverArt: false }, // WAV has no metadata
+  flac: { codec: "flac", ext: "flac", mime: "audio/flac", lossless: true, supportsCoverArt: true },
+  aiff: { codec: "pcm_s16be", ext: "aiff", mime: "audio/aiff", lossless: true, supportsCoverArt: true },
 };
+
+/**
+ * Check if a format supports embedded cover art.
+ * OGG/Opus: FFmpeg does NOT support embedding cover art (known limitation).
+ * WAV: No metadata support at all.
+ */
+export function formatSupportsCoverArt(format: OutputFormat): boolean {
+  return FORMAT_CONFIG[format]?.supportsCoverArt ?? false;
+}
 
 // Compatibility guardrails: avoid encoder/decoder failures by only allowing
 // sample rate and channel combinations that are broadly supported in browsers
@@ -477,14 +486,23 @@ export async function convertAudio(
 
   await ff.writeFile(inputName, input);
 
-  const args = [
-    "-i",
-    inputName,
-    // Force only the primary audio stream (skip album art / video)
-    "-map",
-    "0:a:0",
-    "-vn",
-  ];
+  const args = ["-i", inputName];
+
+  // Map audio stream
+  args.push("-map", "0:a:0");
+
+  // Cover art handling: preserve for formats that support it
+  if (config.supportsCoverArt) {
+    // Map video stream (cover art) if present - the "?" makes it optional
+    args.push("-map", "0:v?");
+    args.push("-c:v", "copy");
+    args.push("-disposition:v", "attached_pic");
+    // Copy metadata from source
+    args.push("-map_metadata", "0");
+  } else {
+    // Strip video for formats that don't support cover art (OGG, WAV)
+    args.push("-vn");
+  }
 
   args.push(
     "-c:a",
@@ -505,6 +523,11 @@ export async function convertAudio(
   } else if (!config.lossless) {
     // Lossy formats: set explicit bitrate
     args.push("-b:a", normalizedBitrate);
+  }
+
+  // AIFF: enable ID3v2 tags to store cover art
+  if (options.format === "aiff") {
+    args.push("-write_id3v2", "1");
   }
 
   args.push("-y", outName);
@@ -710,14 +733,31 @@ export async function trimAudio(
     args.push("-map", "0:v?");
     args.push("-c", "copy");
   } else {
-    // Output codec settings (audio only)
-    args.push("-map", "0:a:0", "-vn");
+    // Output codec settings
+    args.push("-map", "0:a:0");
     args.push("-map_metadata", "0");
+
+    // Cover art handling: preserve for formats that support it
+    if (config.supportsCoverArt) {
+      // Map video stream (cover art) if present - the "?" makes it optional
+      args.push("-map", "0:v?");
+      args.push("-c:v", "copy");
+      args.push("-disposition:v", "attached_pic");
+    } else {
+      // Strip video for formats that don't support cover art (OGG, WAV)
+      args.push("-vn");
+    }
+
     args.push("-c:a", config.codec);
 
     // Bitrate for lossy formats when explicitly re-encoding to a new format
     if (!config.lossless && options.format !== "source") {
       args.push("-b:a", options.bitrate);
+    }
+
+    // AIFF: enable ID3v2 tags to store cover art
+    if (targetFormat === "aiff") {
+      args.push("-write_id3v2", "1");
     }
   }
 

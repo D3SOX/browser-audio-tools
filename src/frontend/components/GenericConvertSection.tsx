@@ -1,5 +1,6 @@
 import type { ChangeEvent, DragEvent } from "react";
 import type { Channels, GenericConvertOptions, OutputFormat, SampleRate } from "../api";
+import { formatSupportsCoverArt } from "../api";
 import { formatSize } from "../utils/formatSize";
 
 type GenericConvertSectionProps = {
@@ -173,6 +174,13 @@ export function GenericConvertSection({
             </select>
           </div>
         </div>
+        {!formatSupportsCoverArt(options.format) && (
+          <p className="format-warning">
+            ⚠️ {options.format === "ogg"
+              ? "OGG Vorbis does not support embedded cover art (FFmpeg limitation)."
+              : "WAV does not support cover art."}
+          </p>
+        )}
       </section>
     </>
   );

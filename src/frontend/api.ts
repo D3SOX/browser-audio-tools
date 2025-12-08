@@ -6,6 +6,7 @@ import {
   convertAudio as convertAudioLib,
   retagMp3 as retagMp3Lib,
   trimAudio as trimAudioLib,
+  formatSupportsCoverArt,
   type NoiseOptions,
   type ID3Metadata,
   type ConvertOptions,
@@ -17,6 +18,8 @@ import {
   type TrimOptions,
   type TrimOutputFormat,
 } from "../lib/audioProcessor";
+
+export { formatSupportsCoverArt };
 import { zipSync } from "fflate";
 
 export type NoiseType = "white" | "pink";
