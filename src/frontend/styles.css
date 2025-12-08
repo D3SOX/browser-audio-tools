@@ -1275,6 +1275,10 @@ select:disabled {
   cursor: pointer;
 }
 
+.output-filename-checkbox {
+  margin-top: 0.75rem;
+}
+
 .silence-options {
   margin-top: 1rem;
   padding: 1rem;

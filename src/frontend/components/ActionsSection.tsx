@@ -51,8 +51,11 @@ export function ActionsSection({
                 ? "Generate PNG"
                 : `Convert to ${genericConvertOptions.format.toUpperCase()}`;
 
-  // Trim has extra sections so the step number is 5, visualize only has 3 sections before run
-  const stepNumber = operation === "trim" ? 5 : operation === "visualize" ? 4 : 4;
+  // Trim has extra sections so the step number is 5
+  // retag-wav and retag have the output filename section so step is 5
+  // visualize has 3 sections before run so step is 4
+  // Other operations have 3 sections before run so step is 4
+  const stepNumber = operation === "trim" || operation === "retag-wav" || operation === "retag" ? 5 : operation === "visualize" ? 4 : 4;
 
   return (
     <section className="section">

@@ -123,11 +123,12 @@ export async function retagMp3(
   file: File,
   metadata: ID3Metadata,
   onProgress?: ProgressCallback,
-  cover?: Uint8Array
+  cover?: Uint8Array,
+  outputFilename?: string
 ): Promise<ApiResult> {
   const input = new Uint8Array(await file.arrayBuffer());
-  const outputFilename = file.name.replace(/\.mp3$/i, "") + "_retagged.mp3";
-  const result = await retagMp3Lib(input, metadata, outputFilename, onProgress, cover);
+  const finalFilename = outputFilename ?? file.name.replace(/\.mp3$/i, "") + "_retagged.mp3";
+  const result = await retagMp3Lib(input, metadata, finalFilename, onProgress, cover);
 
   return {
     blob: new Blob([new Uint8Array(result.data)], { type: result.mime }),
