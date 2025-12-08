@@ -78,15 +78,15 @@ export const VisualizerSection = forwardRef<VisualizerHandle, VisualizerSectionP
     // Create WaveSurfer instance
     const ws = WaveSurfer.create({
       container: waveformRef.current,
-      waveColor: waveColor,
+      waveColor,
       progressColor: waveColor,
       cursorWidth: 0,
       height: 200,
-      normalize: normalize,
-      barWidth: barWidth,
-      barGap: barGap,
+      normalize,
+      barWidth,
+      barGap,
       barRadius: Math.min(barWidth, 4),
-      barHeight: barHeight,
+      barHeight,
       interact: false,
     });
 
@@ -115,13 +115,13 @@ export const VisualizerSection = forwardRef<VisualizerHandle, VisualizerSectionP
     if (!wavesurferRef.current) return;
     
     wavesurferRef.current.setOptions({
-      waveColor: waveColor,
+      waveColor,
       progressColor: waveColor,
-      normalize: normalize,
-      barWidth: barWidth,
-      barGap: barGap,
+      normalize,
+      barWidth,
+      barGap,
       barRadius: Math.min(barWidth, 4),
-      barHeight: barHeight,
+      barHeight,
     });
   }, [waveColor, normalize, barWidth, barGap, barHeight]);
 
