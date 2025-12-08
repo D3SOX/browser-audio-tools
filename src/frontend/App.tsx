@@ -30,6 +30,13 @@ import { VisualizerSection, type VisualizerHandle } from "./components/Visualize
 import { Footer } from "./components/Footer";
 import type { Operation } from "./types";
 
+const OPERATIONS: Operation[] = ["noise", "cover", "convert", "generic-convert", "retag", "trim", "visualize"];
+
+const getOperationFromHash = (): Operation | null => {
+  const hash = window.location.hash.slice(1);
+  return OPERATIONS.includes(hash as Operation) ? (hash as Operation) : null;
+};
+
 const defaultMetadata: ID3Metadata = {
   title: "",
   artist: "",
@@ -108,7 +115,7 @@ export default function App() {
   const { theme, setTheme } = useTheme();
   const { consent, setConsent } = useAnalyticsConsent();
   const [files, setFiles] = useState<File[]>([]);
-  const [operation, setOperation] = useState<Operation>("noise");
+  const [operation, setOperation] = useState<Operation>(() => getOperationFromHash() ?? "noise");
   const [options, setOptions] = useState<ProcessOptions>(defaultOptions);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -172,6 +179,13 @@ export default function App() {
     currentOperationRef.current = operation;
   }, [operation]);
 
+  // Set initial hash on mount if not already valid
+  useEffect(() => {
+    if (!getOperationFromHash()) {
+      window.history.replaceState(null, "", `#${operation}`);
+    }
+  }, []);
+
   const replaceOperationResult = useCallback(
     (op: Operation, nextResult: OperationResult) => {
       setResultsByOperation((prev) => {
@@ -215,6 +229,9 @@ export default function App() {
   const handleOperationChange = useCallback(
     (nextOperation: Operation) => {
       setOperation(nextOperation);
+      if (window.location.hash.slice(1) !== nextOperation) {
+        window.history.replaceState(null, "", `#${nextOperation}`);
+      }
       const savedResult = resultsByOperation[nextOperation] ?? createEmptyResult();
       setStatus(savedResult.status);
       setError(savedResult.error);
@@ -227,6 +244,17 @@ export default function App() {
     },
     [resultsByOperation]
   );
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const hashOp = getOperationFromHash();
+      if (hashOp && hashOp !== operation) {
+        handleOperationChange(hashOp);
+      }
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [operation, handleOperationChange]);
 
   const handleWavFileSelect = useCallback(
     (nextFile: File | null) => {
