@@ -64,7 +64,7 @@ const defaultGenericConvertOptions: GenericConvertOptions = {
 const SAMPLE_RATES_BY_FORMAT: Record<OutputFormat, SampleRate[]> = {
   mp3: [44100, 48000],
   ogg: [44100, 48000, 96000],
-  aac: [44100, 48000],
+  aac: [44100, 48000, 96000],
   wav: [44100, 48000, 96000],
   flac: [44100, 48000, 96000],
   aiff: [44100, 48000, 96000],

@@ -398,10 +398,8 @@ const FORMAT_CONFIG: Record<OutputFormat, { codec: string; ext: string; mime: st
 // for each output format.
 const FORMAT_CAPABILITIES: Record<OutputFormat, { sampleRates: SampleRate[]; channels: Channels[] }> = {
   mp3: { sampleRates: [44100, 48000], channels: [1, 2] },
-  // Vorbis supports higher rates; 96k kept for hi-res, 44.1/48 for compatibility.
   ogg: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
-  // AAC encoder in ffmpeg.wasm is most reliable at common rates/channels
-  aac: { sampleRates: [44100, 48000], channels: [1, 2] },
+  aac: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
   wav: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
   flac: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
   aiff: { sampleRates: [44100, 48000, 96000], channels: [1, 2] },
