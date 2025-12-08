@@ -70,6 +70,27 @@ function cleanupFiles(ff: FFmpeg, names: string[]) {
   }
 }
 
+function createLogCollector(ff: FFmpeg) {
+  const logs: string[] = [];
+  const handler = ({ message }: { message: string }) => {
+    if (logs.length >= 50) {
+      logs.shift();
+    }
+    logs.push(message);
+  };
+  return {
+    attach() {
+      ff.on("log", handler);
+    },
+    detach() {
+      ff.off("log", handler);
+    },
+    tail(count = 10) {
+      return logs.slice(-count);
+    },
+  };
+}
+
 async function execWithProgress(
   ff: FFmpeg,
   args: string[],
@@ -429,6 +450,7 @@ export async function convertAudio(
   const normalizedBitrate = parseBitrateKbps(options.bitrate);
 
   const ff = await ensureFFmpegLoaded();
+  const logs = createLogCollector(ff);
 
   const config = FORMAT_CONFIG[options.format];
   const inputExt = inputFilename.split(".").pop()?.toLowerCase() ?? "wav";
@@ -441,6 +463,10 @@ export async function convertAudio(
   const args = [
     "-i",
     inputName,
+    // Force only the primary audio stream (skip album art / video)
+    "-map",
+    "0:a:0",
+    "-vn",
   ];
 
   args.push(
@@ -463,6 +489,7 @@ export async function convertAudio(
 
   args.push("-y", outName);
 
+  logs.attach();
   try {
     await execWithProgress(ff, args, onProgress);
     const data = await ff.readFile(outName);
@@ -470,8 +497,10 @@ export async function convertAudio(
       throw new Error("Unexpected ffmpeg output");
     }
     if (data.length === 0) {
+      const logTail = logs.tail().join(" | ");
+      const extra = logTail ? ` Details: ${logTail}` : "";
       throw new Error(
-        `FFmpeg produced an empty ${options.format.toUpperCase()} file. Try 44.1/48 kHz and a standard bitrate.`
+        `FFmpeg produced an empty ${options.format.toUpperCase()} file. Try 44.1/48 kHz and a standard bitrate.${extra}`
       );
     }
     return {
@@ -480,10 +509,11 @@ export async function convertAudio(
       mime: config.mime,
     };
   } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to convert audio"
-    );
+    const logTail = logs.tail().join(" | ");
+    const extra = logTail ? ` Details: ${logTail}` : "";
+    throw new Error((error instanceof Error ? error.message : "Failed to convert audio") + extra);
   } finally {
+    logs.detach();
     cleanupFiles(ff, [inputName, outName]);
   }
 }
@@ -601,6 +631,7 @@ export async function trimAudio(
   onProgress?: ProgressCallback
 ): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
+  const logs = createLogCollector(ff);
 
   const config = FORMAT_CONFIG[options.format];
   const inputExt = inputFilename.split(".").pop()?.toLowerCase() ?? "mp3";
@@ -612,12 +643,16 @@ export async function trimAudio(
 
   const args: string[] = [];
 
+  const duration = options.endTime - options.startTime;
+  if (duration <= 0) {
+    throw new Error("Trim end time must be after start time.");
+  }
+
   // Seek to start position (before input for faster seeking)
   args.push("-ss", String(options.startTime));
   args.push("-i", inputName);
 
   // Duration (end - start)
-  const duration = options.endTime - options.startTime;
   args.push("-t", String(duration));
 
   // Build filter chain
@@ -640,7 +675,8 @@ export async function trimAudio(
     args.push("-af", filters.join(","));
   }
 
-  // Output codec settings
+  // Output codec settings (audio only)
+  args.push("-map", "0:a:0", "-vn");
   args.push("-c:a", config.codec);
 
   // Bitrate for lossy formats
@@ -650,11 +686,17 @@ export async function trimAudio(
 
   args.push("-y", outName);
 
+  logs.attach();
   try {
     await execWithProgress(ff, args, onProgress);
     const data = await ff.readFile(outName);
     if (!(data instanceof Uint8Array)) {
       throw new Error("Unexpected ffmpeg output");
+    }
+    if (data.length === 0) {
+      const logTail = logs.tail().join(" | ");
+      const extra = logTail ? ` Details: ${logTail}` : "";
+      throw new Error(`FFmpeg produced an empty trimmed file.${extra}`);
     }
     return {
       data,
@@ -662,10 +704,11 @@ export async function trimAudio(
       mime: config.mime,
     };
   } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to trim audio"
-    );
+    const logTail = logs.tail().join(" | ");
+    const extra = logTail ? ` Details: ${logTail}` : "";
+    throw new Error((error instanceof Error ? error.message : "Failed to trim audio") + extra);
   } finally {
+    logs.detach();
     cleanupFiles(ff, [inputName, outName]);
   }
 }
