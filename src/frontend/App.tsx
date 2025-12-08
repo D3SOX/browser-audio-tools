@@ -30,7 +30,7 @@ import { VisualizerSection, type VisualizerHandle } from "./components/Visualize
 import { Footer } from "./components/Footer";
 import type { Operation } from "./types";
 
-const OPERATIONS: Operation[] = ["noise", "cover", "convert", "generic-convert", "retag", "trim", "visualize"];
+const OPERATIONS: Operation[] = ["noise", "cover", "retag-wav", "convert", "retag", "trim", "visualize"];
 
 const getOperationFromHash = (): Operation | null => {
   const hash = window.location.hash.slice(1);
@@ -104,8 +104,8 @@ const createEmptyResult = (): OperationResult => ({
 const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
   noise: createEmptyResult(),
   cover: createEmptyResult(),
+  "retag-wav": createEmptyResult(),
   convert: createEmptyResult(),
-  "generic-convert": createEmptyResult(),
   retag: createEmptyResult(),
   trim: createEmptyResult(),
   visualize: createEmptyResult(),
@@ -666,12 +666,12 @@ export default function App() {
 
   const submit = async () => {
     const activeOperation = operation;
-    if (activeOperation === "convert") {
+    if (activeOperation === "retag-wav") {
       if (!wavFile || !mp3SourceFile) {
         setError("Please choose both a WAV file and an MP3 source file.");
         return;
       }
-    } else if (activeOperation === "generic-convert") {
+    } else if (activeOperation === "convert") {
       if (genericConvertFiles.length === 0) {
         setError("Please choose an audio file to convert.");
         return;
@@ -795,7 +795,7 @@ export default function App() {
             processing: false,
           });
         }
-      } else if (activeOperation === "convert") {
+      } else if (activeOperation === "retag-wav") {
         const outputName = mp3SourceFile!.name.replace(/\.mp3$/i, "") + ".mp3";
         const result = await convertWavToMp3(wavFile!, mp3SourceFile!, metadata, outputName, onProgress, convertCover ?? undefined);
         const url = URL.createObjectURL(result.blob);
@@ -809,7 +809,7 @@ export default function App() {
           progress: null,
           processing: false,
         });
-      } else if (activeOperation === "generic-convert") {
+      } else if (activeOperation === "convert") {
         const formatLabel = genericConvertOptions.format.toUpperCase();
         const isLossless = LOSSLESS_FORMATS.includes(genericConvertOptions.format);
         const bitrateInfo = isLossless ? "lossless" : genericConvertOptions.bitrate;
@@ -923,11 +923,11 @@ export default function App() {
         <main className="card">
           <OperationPicker operation={operation} onChange={handleOperationChange} />
 
-          {operation !== "convert" && operation !== "generic-convert" && operation !== "retag" && operation !== "trim" && operation !== "visualize" && (
+          {operation !== "retag-wav" && operation !== "convert" && operation !== "retag" && operation !== "trim" && operation !== "visualize" && (
             <AudioFilePicker files={files} dragOver={dragOver} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onChange={handleFileChange} />
           )}
 
-          {operation === "convert" && (
+          {operation === "retag-wav" && (
             <ConvertFilesSection
               wavFile={wavFile}
               mp3SourceFile={mp3SourceFile}
@@ -961,7 +961,7 @@ export default function App() {
             />
           )}
 
-          {operation === "generic-convert" && (
+          {operation === "convert" && (
             <GenericConvertSection
               files={genericConvertFiles}
               dragOver={dragOverGeneric}

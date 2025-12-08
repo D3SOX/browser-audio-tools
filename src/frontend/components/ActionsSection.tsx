@@ -41,7 +41,7 @@ export function ActionsSection({
       ? "Add noise + concat"
       : operation === "cover"
         ? "Extract cover"
-        : operation === "convert"
+        : operation === "retag-wav"
           ? "Convert to MP3"
           : operation === "retag"
             ? "Retag MP3"

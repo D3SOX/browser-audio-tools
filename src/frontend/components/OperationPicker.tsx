@@ -34,8 +34,8 @@ export function OperationPicker({ operation, onChange }: OperationPickerProps) {
           </div>
           <span className="radio-card-label">Extract Cover</span>
         </label>
-        <label className={`radio-card ${operation === "convert" ? "selected" : ""}`}>
-          <input type="radio" name="operation" value="convert" checked={operation === "convert"} onChange={() => onChange("convert")} />
+        <label className={`radio-card ${operation === "retag-wav" ? "selected" : ""}`}>
+          <input type="radio" name="operation" value="retag-wav" checked={operation === "retag-wav"} onChange={() => onChange("retag-wav")} />
           <div className="radio-card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -45,13 +45,13 @@ export function OperationPicker({ operation, onChange }: OperationPickerProps) {
           </div>
           <span className="radio-card-label">Retag WAV into MP3</span>
         </label>
-        <label className={`radio-card ${operation === "generic-convert" ? "selected" : ""}`}>
+        <label className={`radio-card ${operation === "convert" ? "selected" : ""}`}>
           <input
             type="radio"
             name="operation"
-            value="generic-convert"
-            checked={operation === "generic-convert"}
-            onChange={() => onChange("generic-convert")}
+            value="convert"
+            checked={operation === "convert"}
+            onChange={() => onChange("convert")}
           />
           <div className="radio-card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

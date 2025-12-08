@@ -49,9 +49,9 @@ export function GenericConvertSection({
             multiple
             onChange={handleFileChange}
             className="file-input-hidden"
-            id="generic-convert-input"
+            id="convert-input"
           />
-          <label htmlFor="generic-convert-input" className="file-dropzone-label">
+          <label htmlFor="convert-input" className="file-dropzone-label">
             <div className="file-icon">
               {hasFiles ? (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
