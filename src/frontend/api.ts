@@ -85,14 +85,14 @@ export async function readMetadataFromFile(file: File): Promise<ID3Metadata> {
 
 export async function convertWavToMp3(
   wavFile: File,
-  mp3SourceFile: File,
+  mp3SourceFile: File | null,
   options: ConvertOptions = {},
   outputFilename?: string,
   onProgress?: ProgressCallback,
   cover?: Uint8Array
 ): Promise<ApiResult> {
   const wavInput = new Uint8Array(await wavFile.arrayBuffer());
-  const mp3Source = new Uint8Array(await mp3SourceFile.arrayBuffer());
+  const mp3Source = mp3SourceFile ? new Uint8Array(await mp3SourceFile.arrayBuffer()) : undefined;
 
   const result = await convertWavLib(wavInput, mp3Source, options, outputFilename, onProgress, cover);
 

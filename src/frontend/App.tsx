@@ -187,6 +187,7 @@ export default function App() {
     retagMetadata,
     mp3SourceFile,
     retagFile,
+    wavFile,
   });
 
   const isLosslessFormat = LOSSLESS_FORMATS.includes(genericConvertOptions.format);
@@ -685,8 +686,8 @@ export default function App() {
   const submit = async () => {
     const activeOperation = operation;
     if (activeOperation === "retag-wav") {
-      if (!wavFile || !mp3SourceFile) {
-        setError("Please choose both a WAV file and an MP3 source file.");
+      if (!wavFile) {
+        setError("Please choose a WAV file.");
         return;
       }
     } else if (activeOperation === "convert") {
@@ -815,11 +816,13 @@ export default function App() {
         }
       } else if (activeOperation === "retag-wav") {
         // Use custom filename if provided, otherwise fall back to default base name
-        const defaultBase = mp3SourceFile!.name.replace(/\.mp3$/i, "");
+        const defaultBase = mp3SourceFile
+          ? mp3SourceFile.name.replace(/\.mp3$/i, "")
+          : wavFile!.name.replace(/\.wav$/i, "");
         const baseFilename = outputFilename.trim() || defaultBase;
         // Always append .mp3 extension (outputFilename stores base name only)
         const finalName = `${baseFilename}.mp3`;
-        const result = await convertWavToMp3(wavFile!, mp3SourceFile!, metadata, finalName, onProgress, convertCover ?? undefined);
+        const result = await convertWavToMp3(wavFile!, mp3SourceFile, metadata, finalName, onProgress, convertCover ?? undefined);
         const url = URL.createObjectURL(result.blob);
         replaceOperationResult(activeOperation, {
           status: "WAV retagged into 320kbps MP3 with metadata. Ready to download.",

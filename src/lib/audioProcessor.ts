@@ -490,7 +490,7 @@ export async function convertAudio(
 
 export async function convertWavToMp3WithMetadata(
   wavInput: Uint8Array,
-  mp3Source: Uint8Array,
+  mp3Source: Uint8Array | undefined,
   options: ConvertOptions = {},
   outputFilename?: string,
   onProgress?: ProgressCallback,
@@ -502,19 +502,31 @@ export async function convertWavToMp3WithMetadata(
   const mp3Name = "source.mp3";
   const coverName = "cover.jpg";
   const outName = outputFilename ?? "output.mp3";
-  const filesToCleanup = [wavName, mp3Name, outName];
+  const filesToCleanup = [wavName, outName];
 
   await ff.writeFile(wavName, wavInput);
-  await ff.writeFile(mp3Name, mp3Source);
+
+  if (mp3Source) {
+    await ff.writeFile(mp3Name, mp3Source);
+    filesToCleanup.push(mp3Name);
+  }
 
   if (cover) {
     await ff.writeFile(coverName, cover);
     filesToCleanup.push(coverName);
   }
 
-  const args = ["-i", wavName, "-i", mp3Name];
+  // Build ffmpeg arguments based on available inputs
+  const args: string[] = ["-i", wavName];
 
+  if (mp3Source) {
+    args.push("-i", mp3Name);
+  }
+
+  // Track which input index the cover is at (for -map)
+  let coverInputIndex: number | null = null;
   if (cover) {
+    coverInputIndex = mp3Source ? 2 : 1;
     args.push("-i", coverName);
   }
 
@@ -522,19 +534,23 @@ export async function convertWavToMp3WithMetadata(
     "-map", "0:a",
     "-c:a", "libmp3lame",
     "-b:a", "320k",
-    "-id3v2_version", "3",
-    "-map_metadata", "1"
+    "-id3v2_version", "3"
   );
+
+  // Copy metadata from MP3 source if provided
+  if (mp3Source) {
+    args.push("-map_metadata", "1");
+  }
 
   if (cover) {
     // Use the provided cover image
     args.push(
-      "-map", "2:v",
+      "-map", `${coverInputIndex}:v`,
       "-c:v", "copy",
       "-metadata:s:v", "title=Album cover",
       "-metadata:s:v", "comment=Cover (front)"
     );
-  } else {
+  } else if (mp3Source) {
     // Use cover from MP3 source if available
     args.push("-map", "1:v?");
   }
@@ -570,7 +586,7 @@ export async function convertWavToMp3WithMetadata(
     };
   } catch (error) {
     throw new Error(
-      error instanceof Error ? error.message : "Failed to retag WAV into MP3"
+      error instanceof Error ? error.message : "Failed to convert WAV to MP3"
     );
   } finally {
     cleanupFiles(ff, filesToCleanup);

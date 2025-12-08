@@ -52,7 +52,7 @@ export function ConvertFilesSection({
           <span className="step-number">2</span>
           Choose files
         </h2>
-        <p className="hint">Outputs a 320kbps MP3; tags and art copy from the MP3 source.</p>
+        <p className="hint">Outputs a 320kbps MP3. Optionally import tags and art from an MP3.</p>
         <div className="convert-files-grid">
           <div
             className={`file-dropzone file-dropzone-small ${dragOverWav ? "drag-over" : ""} ${wavFile ? "has-file" : ""}`}
@@ -123,8 +123,8 @@ export function ConvertFilesSection({
                   </>
                 ) : (
                   <>
-                    <span className="file-cta">MP3 file (metadata source)</span>
-                    <span className="file-hint">Copy tags & artwork from</span>
+                    <span className="file-cta">MP3 file (optional)</span>
+                    <span className="file-hint">Import tags & artwork from</span>
                   </>
                 )}
               </div>
@@ -170,7 +170,7 @@ export function ConvertFilesSection({
             </div>
           </div>
         </div>
-        <p className="hint">Metadata is prefilled from the MP3 source. Edit before converting.</p>
+        <p className="hint">Metadata is prefilled from the MP3 source if provided. Edit before converting.</p>
       </section>
     </>
   );
