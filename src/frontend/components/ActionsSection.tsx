@@ -43,12 +43,17 @@ export function ActionsSection({
           ? "Convert to MP3"
           : operation === "retag"
             ? "Retag MP3"
-            : `Convert to ${genericConvertOptions.format.toUpperCase()}`;
+            : operation === "trim"
+              ? "Trim audio"
+              : `Convert to ${genericConvertOptions.format.toUpperCase()}`;
+
+  // Trim has extra sections so the step number is 5
+  const stepNumber = operation === "trim" ? 5 : 4;
 
   return (
     <section className="section">
       <h2 className="section-title">
-        <span className="step-number">4</span>
+        <span className="step-number">{stepNumber}</span>
         Run
       </h2>
       <div className="actions">

@@ -20,7 +20,8 @@
     "@ffmpeg/util": "^0.12.2",
     "fflate": "^0.8.2",
     "react": "^19.2.1",
-    "react-dom": "^19.2.1"
+    "react-dom": "^19.2.1",
+    "wavesurfer.js": "^7.12.1"
   },
   "engines": {
     "node": "24.x"

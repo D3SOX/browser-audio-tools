@@ -353,6 +353,16 @@ export interface GenericConvertOptions {
   channels: Channels;
 }
 
+export interface TrimOptions {
+  startTime: number; // seconds
+  endTime: number; // seconds
+  format: OutputFormat;
+  bitrate: string;
+  removeSilence: boolean;
+  silenceThreshold: number; // dB (e.g., -50)
+  silenceDuration: number; // seconds (minimum silence duration to remove)
+}
+
 const FORMAT_CONFIG: Record<OutputFormat, { codec: string; ext: string; mime: string; lossless: boolean }> = {
   mp3: { codec: "libmp3lame", ext: "mp3", mime: "audio/mpeg", lossless: false },
   ogg: { codec: "libvorbis", ext: "ogg", mime: "audio/ogg", lossless: false },
@@ -511,5 +521,87 @@ export async function convertWavToMp3WithMetadata(
     );
   } finally {
     cleanupFiles(ff, filesToCleanup);
+  }
+}
+
+export async function trimAudio(
+  input: Uint8Array,
+  inputFilename: string,
+  options: TrimOptions,
+  outputBaseName?: string,
+  onProgress?: ProgressCallback
+): Promise<ProcessResult> {
+  const ff = await ensureFFmpegLoaded();
+
+  const config = FORMAT_CONFIG[options.format];
+  const inputExt = inputFilename.split(".").pop()?.toLowerCase() ?? "mp3";
+  const inputName = `input.${inputExt}`;
+  const baseName = outputBaseName ?? inputFilename.replace(/\.[^.]+$/, "");
+  const outName = `${baseName}_trimmed.${config.ext}`;
+
+  await ff.writeFile(inputName, input);
+
+  const args: string[] = [];
+
+  // Seek to start position (before input for faster seeking)
+  args.push("-ss", String(options.startTime));
+  args.push("-i", inputName);
+
+  // Duration (end - start)
+  const duration = options.endTime - options.startTime;
+  args.push("-t", String(duration));
+
+  // Build filter chain
+  const filters: string[] = [];
+
+  // Silence removal filter if enabled
+  if (options.removeSilence) {
+    // silenceremove filter:
+    // - stop_periods=-1: remove all silence periods
+    // - stop_threshold: amplitude threshold in dB
+    // - stop_duration: minimum duration of silence to remove
+    // - stop_silence: leave some silence (0 = remove completely)
+    const threshold = Math.pow(10, options.silenceThreshold / 20); // Convert dB to amplitude
+    filters.push(
+      `silenceremove=stop_periods=-1:stop_duration=${options.silenceDuration}:stop_threshold=${threshold}`
+    );
+  }
+
+  if (filters.length > 0) {
+    args.push("-af", filters.join(","));
+  }
+
+  // Output codec settings
+  args.push("-c:a", config.codec);
+
+  // Bitrate for lossy formats
+  if (!config.lossless) {
+    args.push("-b:a", options.bitrate);
+  }
+
+  // AAC needs special container handling
+  if (options.format === "aac") {
+    args.push("-f", "ipod");
+  }
+
+  args.push("-y", outName);
+
+  try {
+    await execWithProgress(ff, args, onProgress);
+    const data = await ff.readFile(outName);
+    if (!(data instanceof Uint8Array)) {
+      throw new Error("Unexpected ffmpeg output");
+    }
+    return {
+      data,
+      filename: outName,
+      mime: config.mime,
+    };
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to trim audio"
+    );
+  } finally {
+    cleanupFiles(ff, [inputName, outName]);
   }
 }

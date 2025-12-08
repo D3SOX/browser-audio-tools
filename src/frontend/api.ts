@@ -5,6 +5,7 @@ import {
   convertWavToMp3WithMetadata as convertWavLib,
   convertAudio as convertAudioLib,
   retagMp3 as retagMp3Lib,
+  trimAudio as trimAudioLib,
   type NoiseOptions,
   type ID3Metadata,
   type ConvertOptions,
@@ -13,11 +14,12 @@ import {
   type SampleRate,
   type Channels,
   type ProgressCallback,
+  type TrimOptions,
 } from "../lib/audioProcessor";
 import { zipSync } from "fflate";
 
 export type NoiseType = "white" | "pink";
-export type { ID3Metadata, ConvertOptions, GenericConvertOptions, OutputFormat, SampleRate, Channels, ProgressCallback };
+export type { ID3Metadata, ConvertOptions, GenericConvertOptions, OutputFormat, SampleRate, Channels, ProgressCallback, TrimOptions };
 
 export type BatchProgressCallback = (progress: { percent: number; currentFile: number; totalFiles: number }) => void;
 
@@ -126,6 +128,21 @@ export async function retagMp3(
   const input = new Uint8Array(await file.arrayBuffer());
   const outputFilename = file.name.replace(/\.mp3$/i, "") + "_retagged.mp3";
   const result = await retagMp3Lib(input, metadata, outputFilename, onProgress, cover);
+
+  return {
+    blob: new Blob([new Uint8Array(result.data)], { type: result.mime }),
+    filename: result.filename,
+    contentType: result.mime,
+  };
+}
+
+export async function trimAudio(
+  file: File,
+  options: TrimOptions,
+  onProgress?: ProgressCallback
+): Promise<ApiResult> {
+  const input = new Uint8Array(await file.arrayBuffer());
+  const result = await trimAudioLib(input, file.name, options, undefined, onProgress);
 
   return {
     blob: new Blob([new Uint8Array(result.data)], { type: result.mime }),

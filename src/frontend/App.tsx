@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import type { ProcessOptions, ID3Metadata, GenericConvertOptions, OutputFormat, ProgressCallback, BatchProgressCallback, ApiResult } from "./api";
-import { extractCover, processAudio, readMetadataFromFile, convertWavToMp3, convertAudio, retagMp3, processAudioBatch, extractCoverBatch, convertAudioBatch } from "./api";
+import { extractCover, processAudio, readMetadataFromFile, convertWavToMp3, convertAudio, retagMp3, processAudioBatch, extractCoverBatch, convertAudioBatch, trimAudio } from "./api";
 import "./styles.css";
 import { useTheme } from "./hooks/useTheme";
 import { Hero } from "./components/Hero";
@@ -12,6 +12,7 @@ import { GenericConvertSection } from "./components/GenericConvertSection";
 import { RetagSection } from "./components/RetagSection";
 import { NoiseOptions } from "./components/NoiseOptions";
 import { ActionsSection } from "./components/ActionsSection";
+import { TrimSection, type TrimOptions } from "./components/TrimSection";
 import { Footer } from "./components/Footer";
 import type { Operation } from "./types";
 
@@ -35,6 +36,16 @@ const defaultGenericConvertOptions: GenericConvertOptions = {
   bitrate: "320k",
   sampleRate: 48000,
   channels: 2,
+};
+
+const defaultTrimOptions: TrimOptions = {
+  startTime: 0,
+  endTime: 0,
+  format: "mp3",
+  bitrate: "320k",
+  removeSilence: false,
+  silenceThreshold: -50,
+  silenceDuration: 0.5,
 };
 
 const LOSSLESS_FORMATS: OutputFormat[] = ["wav", "flac", "aiff"];
@@ -67,6 +78,7 @@ const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
   convert: createEmptyResult(),
   "generic-convert": createEmptyResult(),
   retag: createEmptyResult(),
+  trim: createEmptyResult(),
 });
 
 export default function App() {
@@ -111,7 +123,13 @@ export default function App() {
   // Progress state
   const [progress, setProgress] = useState<number | null>(null);
 
+  // Trim operation state
+  const [trimFile, setTrimFile] = useState<File | null>(null);
+  const [trimOptions, setTrimOptions] = useState<TrimOptions>(defaultTrimOptions);
+  const [dragOverTrim, setDragOverTrim] = useState(false);
+
   const isLosslessFormat = LOSSLESS_FORMATS.includes(genericConvertOptions.format);
+  const isTrimLosslessFormat = LOSSLESS_FORMATS.includes(trimOptions.format);
 
   useEffect(() => {
     currentOperationRef.current = operation;
@@ -357,6 +375,27 @@ export default function App() {
     [retagCoverPreviewUrl]
   );
 
+  const handleTrimFileSelect = useCallback(
+    (nextFile: File | null) => {
+      setTrimFile(nextFile);
+      setTrimOptions(defaultTrimOptions);
+      clearResults();
+    },
+    [clearResults]
+  );
+
+  const handleTrimDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault();
+      setDragOverTrim(false);
+      const droppedFile = e.dataTransfer.files?.[0];
+      if (droppedFile && droppedFile.type.startsWith("audio/")) {
+        handleTrimFileSelect(droppedFile);
+      }
+    },
+    [handleTrimFileSelect]
+  );
+
   const handleFilesSelect = useCallback(
     (nextFiles: File[]) => {
       setFiles(nextFiles);
@@ -409,6 +448,8 @@ export default function App() {
     setGenericConvertOptions(defaultGenericConvertOptions);
     setRetagFile(null);
     setRetagMetadata(defaultMetadata);
+    setTrimFile(null);
+    setTrimOptions(defaultTrimOptions);
     if (convertCoverPreviewUrl) {
       URL.revokeObjectURL(convertCoverPreviewUrl);
     }
@@ -451,6 +492,15 @@ export default function App() {
     } else if (activeOperation === "retag") {
       if (!retagFile) {
         setError("Please choose an MP3 file to retag.");
+        return;
+      }
+    } else if (activeOperation === "trim") {
+      if (!trimFile) {
+        setError("Please choose an audio file to trim.");
+        return;
+      }
+      if (trimOptions.startTime >= trimOptions.endTime) {
+        setError("Start time must be before end time.");
         return;
       }
     } else if (files.length === 0) {
@@ -617,6 +667,22 @@ export default function App() {
           progress: null,
           processing: false,
         });
+      } else if (activeOperation === "trim") {
+        const result = await trimAudio(trimFile!, trimOptions, onProgress);
+        const url = URL.createObjectURL(result.blob);
+        const formatLabel = trimOptions.format.toUpperCase();
+        const duration = trimOptions.endTime - trimOptions.startTime;
+        const silenceInfo = trimOptions.removeSilence ? " with silence removed" : "";
+        replaceOperationResult(activeOperation, {
+          status: `Trimmed to ${duration.toFixed(2)}s${silenceInfo} (${formatLabel}). Ready to download.`,
+          error: null,
+          downloadUrl: url,
+          downloadName: result.filename,
+          previewUrl: url,
+          batchPreviews: null,
+          progress: null,
+          processing: false,
+        });
       }
     } catch (err) {
       console.error(err);
@@ -636,7 +702,7 @@ export default function App() {
         <main className="card">
           <OperationPicker operation={operation} onChange={handleOperationChange} />
 
-          {operation !== "convert" && operation !== "generic-convert" && operation !== "retag" && (
+          {operation !== "convert" && operation !== "generic-convert" && operation !== "retag" && operation !== "trim" && (
             <AudioFilePicker files={files} dragOver={dragOver} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onChange={handleFileChange} />
           )}
 
@@ -713,6 +779,26 @@ export default function App() {
               onFileChange={handleRetagFileSelect}
               onMetadataChange={updateRetagMetadata}
               onCoverChange={handleRetagCoverChange}
+            />
+          )}
+
+          {operation === "trim" && (
+            <TrimSection
+              file={trimFile}
+              dragOver={dragOverTrim}
+              options={trimOptions}
+              isLosslessFormat={isTrimLosslessFormat}
+              onDrop={handleTrimDrop}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOverTrim(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                setDragOverTrim(false);
+              }}
+              onFileChange={handleTrimFileSelect}
+              onOptionsChange={setTrimOptions}
             />
           )}
 

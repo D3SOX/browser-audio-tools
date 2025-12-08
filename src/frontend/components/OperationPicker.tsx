@@ -70,6 +70,19 @@ export function OperationPicker({ operation, onChange }: OperationPickerProps) {
           </div>
           <span className="radio-card-label">Retag MP3</span>
         </label>
+        <label className={`radio-card ${operation === "trim" ? "selected" : ""}`}>
+          <input type="radio" name="operation" value="trim" checked={operation === "trim"} onChange={() => onChange("trim")} />
+          <div className="radio-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 4v16" />
+              <path d="M18 4v16" />
+              <path d="M6 12h12" />
+              <path d="M3 8l3-4 3 4" />
+              <path d="M15 8l3-4 3 4" />
+            </svg>
+          </div>
+          <span className="radio-card-label">Trim Audio</span>
+        </label>
       </div>
     </section>
   );
