@@ -140,6 +140,14 @@ export default function App() {
   const [retagCover, setRetagCover] = useState<Uint8Array | null>(null);
   const [retagCoverPreviewUrl, setRetagCoverPreviewUrl] = useState<string | null>(null);
 
+  // Retag donor file state
+  const [retagDonorFile, setRetagDonorFile] = useState<File | null>(null);
+  const [retagDonorMetadata, setRetagDonorMetadata] = useState<ID3Metadata | null>(null);
+  const [retagDonorCover, setRetagDonorCover] = useState<Uint8Array | null>(null);
+  const [retagDonorCoverPreviewUrl, setRetagDonorCoverPreviewUrl] = useState<string | null>(null);
+  const [loadingDonorMetadata, setLoadingDonorMetadata] = useState(false);
+  const [dragOverDonor, setDragOverDonor] = useState(false);
+
   // Progress state
   const [progress, setProgress] = useState<number | null>(null);
 
@@ -408,6 +416,91 @@ export default function App() {
     [retagCoverPreviewUrl]
   );
 
+  const handleDonorFileSelect = useCallback(
+    async (nextFile: File | null) => {
+      setRetagDonorFile(nextFile);
+      // Clean up previous donor cover preview URL
+      if (retagDonorCoverPreviewUrl) {
+        URL.revokeObjectURL(retagDonorCoverPreviewUrl);
+      }
+      setRetagDonorCover(null);
+      setRetagDonorCoverPreviewUrl(null);
+      setRetagDonorMetadata(null);
+
+      if (nextFile) {
+        setLoadingDonorMetadata(true);
+        try {
+          const meta = await readMetadataFromFile(nextFile);
+          setRetagDonorMetadata(meta);
+        } catch (err) {
+          console.error("Failed to read donor metadata:", err);
+          setRetagDonorMetadata(null);
+        }
+        // Try to extract donor cover
+        try {
+          const coverResult = await extractCover(nextFile);
+          const coverData = new Uint8Array(await coverResult.blob.arrayBuffer());
+          setRetagDonorCover(coverData);
+          setRetagDonorCoverPreviewUrl(URL.createObjectURL(coverResult.blob));
+        } catch {
+          // No cover or extraction failed - that's fine
+        }
+        setLoadingDonorMetadata(false);
+      }
+    },
+    [retagDonorCoverPreviewUrl]
+  );
+
+  const handleDonorDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault();
+      setDragOverDonor(false);
+      const droppedFile = e.dataTransfer.files?.[0];
+      if (droppedFile && (droppedFile.type === "audio/mpeg" || droppedFile.name.endsWith(".mp3"))) {
+        handleDonorFileSelect(droppedFile);
+      }
+    },
+    [handleDonorFileSelect]
+  );
+
+  const handleImportDonorFields = useCallback(
+    (fieldsToImport: Set<string>) => {
+      if (!retagDonorMetadata) return;
+
+      setRetagMetadata((prev) => {
+        const next = { ...prev };
+        if (fieldsToImport.has("title") && retagDonorMetadata.title) {
+          next.title = retagDonorMetadata.title;
+        }
+        if (fieldsToImport.has("artist") && retagDonorMetadata.artist) {
+          next.artist = retagDonorMetadata.artist;
+        }
+        if (fieldsToImport.has("album") && retagDonorMetadata.album) {
+          next.album = retagDonorMetadata.album;
+        }
+        if (fieldsToImport.has("year") && retagDonorMetadata.year) {
+          next.year = retagDonorMetadata.year;
+        }
+        if (fieldsToImport.has("track") && retagDonorMetadata.track) {
+          next.track = retagDonorMetadata.track;
+        }
+        return next;
+      });
+
+      // Import cover if selected
+      if (fieldsToImport.has("cover") && retagDonorCover) {
+        if (retagCoverPreviewUrl) {
+          URL.revokeObjectURL(retagCoverPreviewUrl);
+        }
+        setRetagCover(retagDonorCover);
+        // Create a new URL from the donor cover data
+        const blob = new Blob([retagDonorCover], { type: "image/jpeg" });
+        setRetagCoverPreviewUrl(URL.createObjectURL(blob));
+      }
+    },
+    [retagDonorMetadata, retagDonorCover, retagCoverPreviewUrl]
+  );
+
   const handleTrimFileSelect = useCallback(
     (nextFile: File | null) => {
       setTrimFile(nextFile);
@@ -501,6 +594,13 @@ export default function App() {
     setGenericConvertOptions(defaultGenericConvertOptions);
     setRetagFile(null);
     setRetagMetadata(defaultMetadata);
+    if (retagDonorCoverPreviewUrl) {
+      URL.revokeObjectURL(retagDonorCoverPreviewUrl);
+    }
+    setRetagDonorFile(null);
+    setRetagDonorMetadata(null);
+    setRetagDonorCover(null);
+    setRetagDonorCoverPreviewUrl(null);
     setTrimFile(null);
     setTrimOptions(defaultTrimOptions);
     setVisualizerFile(null);
@@ -529,7 +629,7 @@ export default function App() {
     setBatchPreviews(null);
     setProgress(null);
     setProcessing(false);
-  }, [batchPreviews, convertCoverPreviewUrl, retagCoverPreviewUrl]);
+  }, [batchPreviews, convertCoverPreviewUrl, retagCoverPreviewUrl, retagDonorCoverPreviewUrl]);
 
   const submit = async () => {
     const activeOperation = operation;
@@ -856,6 +956,22 @@ export default function App() {
               onFileChange={handleRetagFileSelect}
               onMetadataChange={updateRetagMetadata}
               onCoverChange={handleRetagCoverChange}
+              donorFile={retagDonorFile}
+              donorMetadata={retagDonorMetadata}
+              donorCoverPreviewUrl={retagDonorCoverPreviewUrl}
+              loadingDonorMetadata={loadingDonorMetadata}
+              dragOverDonor={dragOverDonor}
+              onDonorDrop={handleDonorDrop}
+              onDonorDragOver={(e) => {
+                e.preventDefault();
+                setDragOverDonor(true);
+              }}
+              onDonorDragLeave={(e) => {
+                e.preventDefault();
+                setDragOverDonor(false);
+              }}
+              onDonorFileChange={handleDonorFileSelect}
+              onImportFields={handleImportDonorFields}
             />
           )}
 

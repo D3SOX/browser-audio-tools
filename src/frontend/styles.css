@@ -1455,3 +1455,104 @@ select:disabled {
 .slider-group input[type="range"]:focus::-webkit-slider-thumb {
   box-shadow: 0 0 0 3px var(--input-focus-ring);
 }
+
+/* ===== Donor MP3 Section ===== */
+.donor-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.donor-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.75rem;
+}
+
+.donor-import-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--dropzone-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+}
+
+.donor-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.donor-field-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.donor-field-item:hover:not(.donor-field-disabled) {
+  background: var(--dropzone-active-bg);
+  border-color: var(--dropzone-hover-border);
+}
+
+.donor-field-item.donor-field-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.donor-field-item input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--btn-primary-bg);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.donor-field-item.donor-field-disabled input[type="checkbox"] {
+  cursor: not-allowed;
+}
+
+.donor-field-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  min-width: 70px;
+}
+
+.donor-field-value {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.donor-cover-preview {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--card-border);
+}
+
+.hint-warning {
+  color: var(--text-muted);
+}
+
+.btn-small {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+.file-icon-small {
+  width: 2rem;
+  height: 2rem;
+}
