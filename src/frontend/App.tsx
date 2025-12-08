@@ -58,12 +58,12 @@ const defaultGenericConvertOptions: GenericConvertOptions = {
   format: "mp3",
   bitrate: "320k",
   sampleRate: 48000,
-  channels: 2,
+  channels: "auto",
 };
 
 const SAMPLE_RATES_BY_FORMAT: Record<OutputFormat, SampleRate[]> = {
   mp3: [44100, 48000],
-  ogg: [44100, 48000],
+  ogg: [44100, 48000, 96000],
   aac: [44100, 48000],
   wav: [44100, 48000, 96000],
   flac: [44100, 48000, 96000],

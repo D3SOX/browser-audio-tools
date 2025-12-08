@@ -365,7 +365,7 @@ export interface ConvertOptions {
 // Generic converter types (AAC removed due to wasm encoder issues)
 export type OutputFormat = "mp3" | "ogg" | "aac" | "wav" | "flac" | "aiff";
 export type SampleRate = 44100 | 48000 | 96000;
-export type Channels = 1 | 2;
+export type Channels = 1 | 2 | "auto";
 
 export interface GenericConvertOptions {
   format: OutputFormat;
@@ -433,7 +433,8 @@ function assertGenericConvertCompatibility(options: GenericConvertOptions) {
       )}. Please pick one of those values.`
     );
   }
-  if (!caps.channels.includes(options.channels)) {
+  // Allow "auto" to pass through without forcing channel layout
+  if (options.channels !== "auto" && !caps.channels.includes(options.channels)) {
     throw new Error(
       `${options.format.toUpperCase()} supports channels ${caps.channels.join(
         " or "
@@ -477,9 +478,12 @@ export async function convertAudio(
     config.codec,
     "-ar",
     String(options.sampleRate),
-    "-ac",
-    String(options.channels),
   );
+
+  // Only set channel count when explicitly requested; "auto" preserves source layout.
+  if (options.channels !== "auto") {
+    args.push("-ac", String(options.channels));
+  }
 
   // Vorbis: prefer quality scale for stability across mono/stereo and bitrates
   if (options.format === "ogg") {

@@ -158,9 +158,18 @@ export function GenericConvertSection({
           </div>
           <div className="input-group">
             <label htmlFor="channels">Channels</label>
-            <select id="channels" value={options.channels} onChange={(e) => onOptionChange("channels", Number(e.target.value) as Channels)}>
-              <option value={1}>Mono</option>
+            <select
+              id="channels"
+              value={options.channels}
+              onChange={(e) => {
+                const value = e.target.value;
+                const next: Channels = value === "auto" ? "auto" : (Number(value) as Channels);
+                onOptionChange("channels", next);
+              }}
+            >
+              <option value="auto">Auto (match source)</option>
               <option value={2}>Stereo</option>
+              <option value={1}>Mono</option>
             </select>
           </div>
         </div>
