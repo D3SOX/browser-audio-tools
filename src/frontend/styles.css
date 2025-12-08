@@ -1762,6 +1762,22 @@ select:disabled {
   color: var(--text-hint);
   line-height: 1.5;
 }
+.consent-modal-list {
+  margin: 0 0 1rem;
+  padding-left: 1.1rem;
+  color: var(--text-hint);
+  font-size: 0.93rem;
+  line-height: 1.45;
+}
+.consent-modal-footnote {
+  margin: 0 0 1.1rem;
+  font-size: 0.85rem;
+  color: var(--text-hint);
+}
+.consent-modal-link {
+  color: var(--text-primary);
+  font-weight: 600;
+}
 
 .consent-modal-actions {
   display: flex;
