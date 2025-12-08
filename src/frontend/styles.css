@@ -1175,8 +1175,9 @@ select:disabled {
   width: 100%;
 }
 
-/* Style WaveSurfer region handles via Shadow DOM parts */
-.waveform ::part(region) {
+/* Style WaveSurfer region handles; support both ::part and direct attribute selectors */
+.waveform ::part(region),
+.waveform [part~="region"] {
   border-left: 4px solid #f43f5e !important;
   border-right: 4px solid #f43f5e !important;
   border-top: 2px solid #f43f5e !important;
@@ -1184,24 +1185,31 @@ select:disabled {
   background: rgba(244, 63, 94, 0.15) !important;
 }
 
-.waveform ::part(region-handle) {
-  width: 10px !important;
-  background: #f43f5e !important;
-  border-radius: 4px;
-  opacity: 0.9;
-}
-
-.waveform ::part(region-handle):hover {
-  background: #e11d48 !important;
+.waveform ::part(region-handle),
+.waveform [part~="region-handle"] {
+  width: 2px !important;
+  background: #ff1744 !important; /* bold red, distinct from border */
+  border-radius: 2px;
+  border-color: #ff1744 !important;
+  box-shadow: 0 0 6px #ff1744;
   opacity: 1;
 }
 
+.waveform ::part(region-handle):hover,
+.waveform [part~="region-handle"]:hover {
+  background: #e11d48 !important;
+  border-color: #e11d48 !important;
+  box-shadow: 0 0 6px #e11d48;
+}
+
 /* Add grab cursor for region */
-.waveform ::part(region):hover {
+.waveform ::part(region):hover,
+.waveform [part~="region"]:hover {
   cursor: grab;
 }
 
-.waveform ::part(region):active {
+.waveform ::part(region):active,
+.waveform [part~="region"]:active {
   cursor: grabbing;
 }
 

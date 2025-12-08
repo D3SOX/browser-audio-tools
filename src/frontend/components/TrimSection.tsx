@@ -43,38 +43,9 @@ function createRegionContent(): HTMLElement {
     left: 0;
     right: 0;
     bottom: 0;
-    border: 3px solid #f43f5e;
-    border-radius: 4px;
     pointer-events: none;
     box-sizing: border-box;
   `;
-  
-  // Left handle indicator
-  const leftHandle = document.createElement("div");
-  leftHandle.style.cssText = `
-    position: absolute;
-    left: -2px;
-    top: 0;
-    bottom: 0;
-    width: 6px;
-    background: linear-gradient(to right, #f43f5e 60%, transparent);
-    pointer-events: none;
-  `;
-  
-  // Right handle indicator
-  const rightHandle = document.createElement("div");
-  rightHandle.style.cssText = `
-    position: absolute;
-    right: -2px;
-    top: 0;
-    bottom: 0;
-    width: 6px;
-    background: linear-gradient(to left, #f43f5e 60%, transparent);
-    pointer-events: none;
-  `;
-  
-  div.appendChild(leftHandle);
-  div.appendChild(rightHandle);
   return div;
 }
 
@@ -149,7 +120,7 @@ export function TrimSection({
       container: waveformRef.current,
       waveColor: "#818cf8",
       progressColor: "#4f46e5",
-      cursorColor: "#f43f5e",
+      cursorColor: "#FFD600",
       cursorWidth: 2,
       height: 128,
       normalize: true,
