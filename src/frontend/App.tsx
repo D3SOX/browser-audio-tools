@@ -89,6 +89,8 @@ export default function App() {
   const [loadingMetadata, setLoadingMetadata] = useState(false);
   const [dragOverWav, setDragOverWav] = useState(false);
   const [dragOverMp3, setDragOverMp3] = useState(false);
+  const [convertCover, setConvertCover] = useState<Uint8Array | null>(null);
+  const [convertCoverPreviewUrl, setConvertCoverPreviewUrl] = useState<string | null>(null);
 
   // Generic converter state
   const [genericConvertFile, setGenericConvertFile] = useState<File | null>(null);
@@ -174,6 +176,13 @@ export default function App() {
     async (nextFile: File | null) => {
       setMp3SourceFile(nextFile);
       clearResults();
+      // Clean up previous cover preview URL
+      if (convertCoverPreviewUrl) {
+        URL.revokeObjectURL(convertCoverPreviewUrl);
+      }
+      setConvertCover(null);
+      setConvertCoverPreviewUrl(null);
+
       if (nextFile) {
         setLoadingMetadata(true);
         try {
@@ -182,14 +191,22 @@ export default function App() {
         } catch (err) {
           console.error("Failed to read metadata:", err);
           setMetadata(defaultMetadata);
-        } finally {
-          setLoadingMetadata(false);
         }
+        // Try to extract existing cover
+        try {
+          const coverResult = await extractCover(nextFile);
+          const coverData = new Uint8Array(await coverResult.blob.arrayBuffer());
+          setConvertCover(coverData);
+          setConvertCoverPreviewUrl(URL.createObjectURL(coverResult.blob));
+        } catch {
+          // No cover or extraction failed - that's fine
+        }
+        setLoadingMetadata(false);
       } else {
         setMetadata(defaultMetadata);
       }
     },
-    [clearResults]
+    [clearResults, convertCoverPreviewUrl]
   );
 
   const handleWavDrop = useCallback(
@@ -219,6 +236,23 @@ export default function App() {
   const updateMetadata = <K extends keyof ID3Metadata>(key: K, value: ID3Metadata[K]) => {
     setMetadata((prev) => ({ ...prev, [key]: value }));
   };
+
+  const handleConvertCoverChange = useCallback(
+    async (file: File | null) => {
+      if (convertCoverPreviewUrl) {
+        URL.revokeObjectURL(convertCoverPreviewUrl);
+      }
+      if (file) {
+        const data = new Uint8Array(await file.arrayBuffer());
+        setConvertCover(data);
+        setConvertCoverPreviewUrl(URL.createObjectURL(file));
+      } else {
+        setConvertCover(null);
+        setConvertCoverPreviewUrl(null);
+      }
+    },
+    [convertCoverPreviewUrl]
+  );
 
   const handleGenericConvertFileSelect = useCallback(
     (nextFile: File | null) => {
@@ -362,6 +396,11 @@ export default function App() {
     setGenericConvertOptions(defaultGenericConvertOptions);
     setRetagFile(null);
     setRetagMetadata(defaultMetadata);
+    if (convertCoverPreviewUrl) {
+      URL.revokeObjectURL(convertCoverPreviewUrl);
+    }
+    setConvertCover(null);
+    setConvertCoverPreviewUrl(null);
     if (retagCoverPreviewUrl) {
       URL.revokeObjectURL(retagCoverPreviewUrl);
     }
@@ -381,7 +420,7 @@ export default function App() {
     setPreviewUrl(null);
     setProgress(null);
     setProcessing(false);
-  }, [retagCoverPreviewUrl]);
+  }, [convertCoverPreviewUrl, retagCoverPreviewUrl]);
 
   const submit = async () => {
     const activeOperation = operation;
@@ -451,7 +490,7 @@ export default function App() {
         });
       } else if (activeOperation === "convert") {
         const outputName = mp3SourceFile!.name.replace(/\.mp3$/i, "") + ".mp3";
-        const result = await convertWavToMp3(wavFile!, mp3SourceFile!, metadata, outputName, onProgress);
+        const result = await convertWavToMp3(wavFile!, mp3SourceFile!, metadata, outputName, onProgress, convertCover ?? undefined);
         const url = URL.createObjectURL(result.blob);
         replaceOperationResult(activeOperation, {
           status: "WAV retagged into 320kbps MP3 with metadata. Ready to download.",
@@ -520,6 +559,7 @@ export default function App() {
               dragOverMp3={dragOverMp3}
               loadingMetadata={loadingMetadata}
               metadata={metadata}
+              coverPreviewUrl={convertCoverPreviewUrl}
               onWavDrop={handleWavDrop}
               onMp3Drop={handleMp3Drop}
               onWavDragOver={(e) => {
@@ -541,6 +581,7 @@ export default function App() {
               onWavChange={handleWavFileSelect}
               onMp3Change={handleMp3SourceSelect}
               onMetadataChange={updateMetadata}
+              onCoverChange={handleConvertCoverChange}
             />
           )}
 

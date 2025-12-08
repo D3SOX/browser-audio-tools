@@ -78,12 +78,13 @@ export async function convertWavToMp3(
   mp3SourceFile: File,
   options: ConvertOptions = {},
   outputFilename?: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  cover?: Uint8Array
 ): Promise<ApiResult> {
   const wavInput = new Uint8Array(await wavFile.arrayBuffer());
   const mp3Source = new Uint8Array(await mp3SourceFile.arrayBuffer());
 
-  const result = await convertWavLib(wavInput, mp3Source, options, outputFilename, onProgress);
+  const result = await convertWavLib(wavInput, mp3Source, options, outputFilename, onProgress, cover);
 
   return {
     blob: new Blob([new Uint8Array(result.data)], { type: result.mime }),

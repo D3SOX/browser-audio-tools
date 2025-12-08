@@ -430,35 +430,51 @@ export async function convertWavToMp3WithMetadata(
   mp3Source: Uint8Array,
   options: ConvertOptions = {},
   outputFilename?: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  cover?: Uint8Array
 ): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
 
   const wavName = "input.wav";
   const mp3Name = "source.mp3";
+  const coverName = "cover.jpg";
   const outName = outputFilename ?? "output.mp3";
+  const filesToCleanup = [wavName, mp3Name, outName];
 
   await ff.writeFile(wavName, wavInput);
   await ff.writeFile(mp3Name, mp3Source);
 
-  const args = [
-    "-i",
-    wavName,
-    "-i",
-    mp3Name,
-    "-map",
-    "0:a",
-    "-map",
-    "1:v?",
-    "-c:a",
-    "libmp3lame",
-    "-b:a",
-    "320k",
-    "-id3v2_version",
-    "3",
-    "-map_metadata",
-    "1",
-  ];
+  if (cover) {
+    await ff.writeFile(coverName, cover);
+    filesToCleanup.push(coverName);
+  }
+
+  const args = ["-i", wavName, "-i", mp3Name];
+
+  if (cover) {
+    args.push("-i", coverName);
+  }
+
+  args.push(
+    "-map", "0:a",
+    "-c:a", "libmp3lame",
+    "-b:a", "320k",
+    "-id3v2_version", "3",
+    "-map_metadata", "1"
+  );
+
+  if (cover) {
+    // Use the provided cover image
+    args.push(
+      "-map", "2:v",
+      "-c:v", "copy",
+      "-metadata:s:v", "title=Album cover",
+      "-metadata:s:v", "comment=Cover (front)"
+    );
+  } else {
+    // Use cover from MP3 source if available
+    args.push("-map", "1:v?");
+  }
 
   if (options.title !== undefined) {
     args.push("-metadata", `title=${options.title}`);
@@ -494,6 +510,6 @@ export async function convertWavToMp3WithMetadata(
       error instanceof Error ? error.message : "Failed to retag WAV into MP3"
     );
   } finally {
-    cleanupFiles(ff, [wavName, mp3Name, outName]);
+    cleanupFiles(ff, filesToCleanup);
   }
 }

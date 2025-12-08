@@ -1,6 +1,7 @@
 import type { ChangeEvent, DragEvent } from "react";
 import type { ID3Metadata } from "../api";
 import { formatSize } from "../utils/formatSize";
+import { CoverArtPicker } from "./CoverArtPicker";
 
 type ConvertFilesSectionProps = {
   wavFile: File | null;
@@ -9,6 +10,7 @@ type ConvertFilesSectionProps = {
   dragOverMp3: boolean;
   loadingMetadata: boolean;
   metadata: ID3Metadata;
+  coverPreviewUrl: string | null;
   onWavDrop: (e: DragEvent) => void;
   onMp3Drop: (e: DragEvent) => void;
   onWavDragOver: (e: DragEvent) => void;
@@ -18,6 +20,7 @@ type ConvertFilesSectionProps = {
   onWavChange: (file: File | null) => void;
   onMp3Change: (file: File | null) => void;
   onMetadataChange: <K extends keyof ID3Metadata>(key: K, value: ID3Metadata[K]) => void;
+  onCoverChange: (file: File | null) => void;
 };
 
 export function ConvertFilesSection({
@@ -27,6 +30,7 @@ export function ConvertFilesSection({
   dragOverMp3,
   loadingMetadata,
   metadata,
+  coverPreviewUrl,
   onWavDrop,
   onMp3Drop,
   onWavDragLeave,
@@ -36,6 +40,7 @@ export function ConvertFilesSection({
   onWavChange,
   onMp3Change,
   onMetadataChange,
+  onCoverChange,
 }: ConvertFilesSectionProps) {
   const handleWavChange = (e: ChangeEvent<HTMLInputElement>) => onWavChange(e.target.files?.[0] ?? null);
   const handleMp3Change = (e: ChangeEvent<HTMLInputElement>) => onMp3Change(e.target.files?.[0] ?? null);
@@ -134,32 +139,35 @@ export function ConvertFilesSection({
           Edit metadata
           {loadingMetadata && <span className="loading-text"> (loading...)</span>}
         </h2>
-        <div className="options-grid">
-          <div className="input-group">
-            <label htmlFor="metaTitle">Title</label>
-            <input id="metaTitle" type="text" value={metadata.title} onChange={(e) => onMetadataChange("title", e.target.value)} placeholder="Track title" />
-          </div>
-          <div className="input-group">
-            <label htmlFor="metaArtist">Artist</label>
-            <input id="metaArtist" type="text" value={metadata.artist} onChange={(e) => onMetadataChange("artist", e.target.value)} placeholder="Artist name" />
-          </div>
-          <div className="input-group">
-            <label htmlFor="metaAlbum">
-              Album <span className="optional-label">(optional)</span>
-            </label>
-            <input id="metaAlbum" type="text" value={metadata.album} onChange={(e) => onMetadataChange("album", e.target.value)} placeholder="Album name" />
-          </div>
-          <div className="input-group">
-            <label htmlFor="metaYear">
-              Year <span className="optional-label">(optional)</span>
-            </label>
-            <input id="metaYear" type="text" value={metadata.year ?? ""} onChange={(e) => onMetadataChange("year", e.target.value)} placeholder="e.g. 2024" />
-          </div>
-          <div className="input-group">
-            <label htmlFor="metaTrack">
-              Track # <span className="optional-label">(optional)</span>
-            </label>
-            <input id="metaTrack" type="text" value={metadata.track ?? ""} onChange={(e) => onMetadataChange("track", e.target.value)} placeholder="e.g. 1" />
+        <div className="retag-metadata-layout">
+          <CoverArtPicker previewUrl={coverPreviewUrl} inputId="convert-cover-input" onChange={onCoverChange} />
+          <div className="options-grid retag-fields-grid">
+            <div className="input-group">
+              <label htmlFor="metaTitle">Title</label>
+              <input id="metaTitle" type="text" value={metadata.title} onChange={(e) => onMetadataChange("title", e.target.value)} placeholder="Track title" />
+            </div>
+            <div className="input-group">
+              <label htmlFor="metaArtist">Artist</label>
+              <input id="metaArtist" type="text" value={metadata.artist} onChange={(e) => onMetadataChange("artist", e.target.value)} placeholder="Artist name" />
+            </div>
+            <div className="input-group">
+              <label htmlFor="metaAlbum">
+                Album <span className="optional-label">(optional)</span>
+              </label>
+              <input id="metaAlbum" type="text" value={metadata.album} onChange={(e) => onMetadataChange("album", e.target.value)} placeholder="Album name" />
+            </div>
+            <div className="input-group">
+              <label htmlFor="metaYear">
+                Year <span className="optional-label">(optional)</span>
+              </label>
+              <input id="metaYear" type="text" value={metadata.year ?? ""} onChange={(e) => onMetadataChange("year", e.target.value)} placeholder="e.g. 2024" />
+            </div>
+            <div className="input-group">
+              <label htmlFor="metaTrack">
+                Track # <span className="optional-label">(optional)</span>
+              </label>
+              <input id="metaTrack" type="text" value={metadata.track ?? ""} onChange={(e) => onMetadataChange("track", e.target.value)} placeholder="e.g. 1" />
+            </div>
           </div>
         </div>
         <p className="hint">Metadata is prefilled from the MP3 source. Edit before converting.</p>
