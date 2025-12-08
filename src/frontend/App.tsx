@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
-import type { ProcessOptions, ID3Metadata, GenericConvertOptions, OutputFormat, ProgressCallback, BatchProgressCallback } from "./api";
+import type { ProcessOptions, ID3Metadata, GenericConvertOptions, OutputFormat, ProgressCallback, BatchProgressCallback, ApiResult } from "./api";
 import { extractCover, processAudio, readMetadataFromFile, convertWavToMp3, convertAudio, retagMp3, processAudioBatch, extractCoverBatch, convertAudioBatch } from "./api";
 import "./styles.css";
 import { useTheme } from "./hooks/useTheme";
@@ -45,6 +45,7 @@ type OperationResult = {
   downloadUrl: string | null;
   downloadName: string | null;
   previewUrl: string | null;
+  batchPreviews?: { name: string; url: string; type: "audio" | "image" }[] | null;
   progress: number | null;
   processing: boolean;
 };
@@ -55,6 +56,7 @@ const createEmptyResult = (): OperationResult => ({
   downloadUrl: null,
   downloadName: null,
   previewUrl: null,
+  batchPreviews: undefined,
   progress: null,
   processing: false,
 });
@@ -81,6 +83,7 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false);
   const [resultsByOperation, setResultsByOperation] = useState<Record<Operation, OperationResult>>(createEmptyResultsMap);
   const currentOperationRef = useRef<Operation>("noise");
+  const [batchPreviews, setBatchPreviews] = useState<{ name: string; url: string; type: "audio" | "image" }[] | null>(null);
 
   // Convert operation state
   const [wavFile, setWavFile] = useState<File | null>(null);
@@ -128,6 +131,9 @@ export default function App() {
         ) {
           URL.revokeObjectURL(prevResult.previewUrl);
         }
+        if (prevResult?.batchPreviews) {
+          prevResult.batchPreviews.forEach((item) => URL.revokeObjectURL(item.url));
+        }
         return { ...prev, [op]: nextResult };
       });
 
@@ -137,6 +143,7 @@ export default function App() {
         setDownloadUrl(nextResult.downloadUrl);
         setDownloadName(nextResult.downloadName);
         setPreviewUrl(nextResult.previewUrl);
+        setBatchPreviews(nextResult.batchPreviews ?? null);
         setProgress(nextResult.progress);
         setProcessing(nextResult.processing);
       }
@@ -147,6 +154,7 @@ export default function App() {
   const clearResults = useCallback(() => {
     replaceOperationResult(operation, createEmptyResult());
     setProgress(null);
+    setBatchPreviews(null);
   }, [operation, replaceOperationResult]);
 
   const handleOperationChange = useCallback(
@@ -158,6 +166,7 @@ export default function App() {
       setDownloadUrl(savedResult.downloadUrl);
       setDownloadName(savedResult.downloadName);
       setPreviewUrl(savedResult.previewUrl);
+      setBatchPreviews(savedResult.batchPreviews ?? null);
       setProgress(savedResult.progress);
       setProcessing(savedResult.processing);
     },
@@ -388,6 +397,9 @@ export default function App() {
   };
 
   const handleReset = useCallback(() => {
+    if (batchPreviews) {
+      batchPreviews.forEach((item) => URL.revokeObjectURL(item.url));
+    }
     setFiles([]);
     setWavFile(null);
     setMp3SourceFile(null);
@@ -419,9 +431,10 @@ export default function App() {
     setDownloadUrl(null);
     setDownloadName(null);
     setPreviewUrl(null);
+    setBatchPreviews(null);
     setProgress(null);
     setProcessing(false);
-  }, [convertCoverPreviewUrl, retagCoverPreviewUrl]);
+  }, [batchPreviews, convertCoverPreviewUrl, retagCoverPreviewUrl]);
 
   const submit = async () => {
     const activeOperation = operation;
@@ -484,18 +497,25 @@ export default function App() {
             downloadUrl: url,
             downloadName: result.filename,
             previewUrl: url,
+            batchPreviews: null,
             progress: null,
             processing: false,
           });
         } else {
           const result = await processAudioBatch(files, options, onBatchProgress);
-          const url = URL.createObjectURL(result.blob);
+          const previewItems = result.items.map((item) => ({
+            name: item.filename,
+            url: URL.createObjectURL(item.blob),
+            type: "audio" as const,
+          }));
+          const url = URL.createObjectURL(result.zip.blob);
           replaceOperationResult(activeOperation, {
             status: `Processed ${files.length} files. Ready to download ZIP.`,
             error: null,
             downloadUrl: url,
-            downloadName: result.filename,
+            downloadName: result.zip.filename,
             previewUrl: null,
+            batchPreviews: previewItems,
             progress: null,
             processing: false,
           });
@@ -510,18 +530,25 @@ export default function App() {
             downloadUrl: url,
             downloadName: result.filename,
             previewUrl: url,
+            batchPreviews: null,
             progress: null,
             processing: false,
           });
         } else {
           const result = await extractCoverBatch(files, onBatchProgress);
-          const url = URL.createObjectURL(result.blob);
+          const previewItems = result.items.map((item) => ({
+            name: item.filename,
+            url: URL.createObjectURL(item.blob),
+            type: "image" as const,
+          }));
+          const url = URL.createObjectURL(result.zip.blob);
           replaceOperationResult(activeOperation, {
             status: `Extracted covers from ${files.length} files. Ready to download ZIP.`,
             error: null,
             downloadUrl: url,
-            downloadName: result.filename,
+            downloadName: result.zip.filename,
             previewUrl: null,
+            batchPreviews: previewItems,
             progress: null,
             processing: false,
           });
@@ -536,6 +563,7 @@ export default function App() {
           downloadUrl: url,
           downloadName: outputName,
           previewUrl: url,
+          batchPreviews: null,
           progress: null,
           processing: false,
         });
@@ -553,18 +581,25 @@ export default function App() {
             downloadUrl: url,
             downloadName: result.filename,
             previewUrl: url,
+            batchPreviews: null,
             progress: null,
             processing: false,
           });
         } else {
           const result = await convertAudioBatch(genericConvertFiles, genericConvertOptions, onBatchProgress);
-          const url = URL.createObjectURL(result.blob);
+          const previewItems = result.items.map((item) => ({
+            name: item.filename,
+            url: URL.createObjectURL(item.blob),
+            type: "audio" as const,
+          }));
+          const url = URL.createObjectURL(result.zip.blob);
           replaceOperationResult(activeOperation, {
             status: `Converted ${genericConvertFiles.length} files to ${formatLabel} (${bitrateInfo}). Ready to download ZIP.`,
             error: null,
             downloadUrl: url,
-            downloadName: result.filename,
+            downloadName: result.zip.filename,
             previewUrl: null,
+            batchPreviews: previewItems,
             progress: null,
             processing: false,
           });
@@ -578,6 +613,7 @@ export default function App() {
           downloadUrl: url,
           downloadName: result.filename,
           previewUrl: url,
+          batchPreviews: null,
           progress: null,
           processing: false,
         });
@@ -702,6 +738,7 @@ export default function App() {
             downloadUrl={downloadUrl}
             downloadName={downloadName}
             previewUrl={previewUrl}
+            batchPreviews={batchPreviews}
             operation={operation}
             genericConvertOptions={genericConvertOptions}
             onSubmit={submit}

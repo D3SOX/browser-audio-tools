@@ -34,6 +34,11 @@ export interface ApiResult {
   contentType: string;
 }
 
+export interface BatchApiResult {
+  zip: ApiResult;
+  items: ApiResult[];
+}
+
 export async function processAudio(
   file: File,
   options: ProcessOptions,
@@ -137,8 +142,8 @@ function createZipBlob(files: { name: string; data: Uint8Array }[]): Blob {
     zipData[file.name] = file.data;
   }
   const zipped = zipSync(zipData);
-  // Slice to ensure we get a plain ArrayBuffer that Blob accepts
-  return new Blob([zipped.slice().buffer as ArrayBuffer], { type: "application/zip" });
+  const bufferCopy = new Uint8Array(zipped); // ensures ArrayBuffer (not SharedArrayBuffer)
+  return new Blob([bufferCopy], { type: "application/zip" });
 }
 
 function getUniqueFilename(name: string, usedNames: Set<string>): string {
@@ -162,7 +167,7 @@ export async function processAudioBatch(
   files: File[],
   options: ProcessOptions,
   onProgress?: BatchProgressCallback
-): Promise<ApiResult> {
+): Promise<BatchApiResult> {
   const results: { name: string; data: Uint8Array }[] = [];
   const usedNames = new Set<string>();
 
@@ -192,18 +197,25 @@ export async function processAudioBatch(
 
   onProgress?.({ percent: 100, currentFile: files.length, totalFiles: files.length });
 
-  const zipBlob = createZipBlob(results);
-  return {
-    blob: zipBlob,
+  const zip: ApiResult = {
+    blob: createZipBlob(results),
     filename: "audio_with_noise.zip",
     contentType: "application/zip",
   };
+
+  const items: ApiResult[] = results.map((item) => ({
+    blob: new Blob([new Uint8Array(item.data)], { type: "audio/mpeg" }),
+    filename: item.name,
+    contentType: "audio/mpeg",
+  }));
+
+  return { zip, items };
 }
 
 export async function extractCoverBatch(
   files: File[],
   onProgress?: BatchProgressCallback
-): Promise<ApiResult> {
+): Promise<BatchApiResult> {
   const results: { name: string; data: Uint8Array }[] = [];
   const usedNames = new Set<string>();
 
@@ -235,20 +247,27 @@ export async function extractCoverBatch(
     throw new Error("No covers found in any of the selected files.");
   }
 
-  const zipBlob = createZipBlob(results);
-  return {
-    blob: zipBlob,
+  const zip: ApiResult = {
+    blob: createZipBlob(results),
     filename: "covers.zip",
     contentType: "application/zip",
   };
+
+  const items: ApiResult[] = results.map((item) => ({
+    blob: new Blob([new Uint8Array(item.data)], { type: "image/jpeg" }),
+    filename: item.name,
+    contentType: "image/jpeg",
+  }));
+
+  return { zip, items };
 }
 
 export async function convertAudioBatch(
   files: File[],
   options: GenericConvertOptions,
   onProgress?: BatchProgressCallback
-): Promise<ApiResult> {
-  const results: { name: string; data: Uint8Array }[] = [];
+): Promise<BatchApiResult> {
+  const results: { name: string; data: Uint8Array; mime: string }[] = [];
   const usedNames = new Set<string>();
 
   for (let i = 0; i < files.length; i++) {
@@ -264,15 +283,23 @@ export async function convertAudioBatch(
     results.push({
       name: getUniqueFilename(result.filename, usedNames),
       data: new Uint8Array(result.data),
+      mime: result.mime,
     });
   }
 
   onProgress?.({ percent: 100, currentFile: files.length, totalFiles: files.length });
 
-  const zipBlob = createZipBlob(results);
-  return {
-    blob: zipBlob,
+  const zip: ApiResult = {
+    blob: createZipBlob(results.map(({ name, data }) => ({ name, data }))),
     filename: `converted_${options.format}.zip`,
     contentType: "application/zip",
   };
+
+  const items: ApiResult[] = results.map((item) => ({
+    blob: new Blob([new Uint8Array(item.data)], { type: item.mime }),
+    filename: item.name,
+    contentType: item.mime,
+  }));
+
+  return { zip, items };
 }

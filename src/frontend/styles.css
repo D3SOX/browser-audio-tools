@@ -891,6 +891,32 @@ select:disabled {
   border-radius: 8px;
 }
 
+.batch-preview {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.preview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: stretch;
+}
+
+.preview-item img,
+.preview-item audio {
+  width: 100%;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.preview-name {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
 /* ===== Card Footer ===== */
 .card-footer {
   margin-top: 2rem;

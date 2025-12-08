@@ -11,6 +11,7 @@ type ActionsSectionProps = {
   downloadUrl: string | null;
   downloadName: string | null;
   previewUrl: string | null;
+  batchPreviews?: { name: string; url: string; type: "audio" | "image" }[] | null;
   operation: Operation;
   genericConvertOptions: GenericConvertOptions;
   onSubmit: () => void;
@@ -27,6 +28,7 @@ export function ActionsSection({
   downloadUrl,
   downloadName,
   previewUrl,
+  batchPreviews,
   operation,
   genericConvertOptions,
   onSubmit,
@@ -89,7 +91,24 @@ export function ActionsSection({
               {downloadName}
             </a>
           </div>
-          {previewUrl && (
+          {batchPreviews && batchPreviews.length > 0 && (
+            <div className="result-preview batch-preview">
+              {batchPreviews.map((item) =>
+                item.type === "image" ? (
+                  <div key={item.url} className="preview-item">
+                    <img src={item.url} alt={item.name} />
+                    <span className="preview-name">{item.name}</span>
+                  </div>
+                ) : (
+                  <div key={item.url} className="preview-item">
+                    <audio controls src={item.url} />
+                    <span className="preview-name">{item.name}</span>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+          {!batchPreviews && previewUrl && (
             <div className="result-preview">
               {operation === "cover" ? <img src={previewUrl} alt="Cover preview" /> : <audio controls src={previewUrl} />}
             </div>
