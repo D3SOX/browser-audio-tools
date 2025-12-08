@@ -917,6 +917,12 @@ select:disabled {
   word-break: break-word;
 }
 
+.preview-note {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
 /* ===== Card Footer ===== */
 .card-footer {
   margin-top: 2rem;
