@@ -113,7 +113,7 @@ export function RetagSection({
       <section className="section">
         <h2 className="section-title">
           <span className="step-number">2</span>
-          Choose files
+          Choose audio files
         </h2>
         <p className="hint">Pick the MP3 to retag. Optionally pull tags and cover art from another MP3.</p>
         <div className="convert-files-grid">

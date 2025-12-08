@@ -50,7 +50,7 @@ export function ConvertFilesSection({
       <section className="section">
         <h2 className="section-title">
           <span className="step-number">2</span>
-          Choose files
+          Choose audio files
         </h2>
         <p className="hint">Outputs a 320kbps MP3. Optionally import tags and art from an MP3.</p>
         <div className="convert-files-grid">
