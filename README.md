@@ -44,6 +44,9 @@ This is a fully static site (no serverless functions needed):
   - Output: MP3, OGG, AAC (lossy) or WAV, FLAC, AIFF (lossless)
   - Configurable bitrate, sample rate, and channels
 - **Retag MP3**: Edit ID3v2 tags on existing MP3 files without re-encoding
+- **Audio Trimming**: Visually select a region, trim to it, and export in any supported format with optional silence removal (threshold + duration)
+- **Waveform Generator**: Customize colors, bar style, normalization, and background opacity; export a transparent or colored PNG waveform for the selected track
+- **Multi-file processing**: Most operations accept multiple files in one go, show per-file progress, and return a ZIP of all outputs
 
 ## Use cases
 
@@ -51,15 +54,36 @@ This is a fully static site (no serverless functions needed):
 - **Retag WAV into MP3**: When you have a clean WAV render but metadata lives in another file (e.g., an MP3 grabbed via `yt-dlp` from SoundCloud/YouTube), load both: pick the WAV as the target and the MP3 as the metadata source. The tool copies title/artist/album/artwork into a 320kbps MP3 and you can tidy ID3 tags like properly putting it into the respective fields for Title/Artist/Album (optional) or removing superflous text like `[FREE DOWNLOAD]` for a cleaner library.
 - **Fix up MP3 tags**: Quickly edit ID3 tags on an existing MP3 — update metadata without re-encoding. Handy for cleaning up messy downloads or fixing typos in your music library.
 
+## Multi-processing & batching
+
+- The Tools Noise + Track, Extract Cover, and Convert Audio accept multiple files
+- Outputs download as a ZIP with unique filenames-
+- Quick previews appear for each item
+- Uses the multi-threaded ffmpeg core in the worker to speed up per-file execution where the browser allows
+
+## Audio trimming workflow
+
+- Upload a file, drag the highlighted region in the waveform, or type start/end times (`M:SS.xx` or seconds)
+- Toggle **Remove silence** to strip quiet sections inside the trimmed window using `silenceremove` (threshold + minimum duration)
+- Pick the output format/bitrate; exports keep the selected slice only
+
+## Waveform generator
+
+- Pick an audio file, adjust bar width/gap/height, normalization, and colors (with presets)
+- Set background color/opacity or leave it transparent for overlays
+- Export a PNG straight from the browser
+
 ## Frontend
 
 - Single-page React UI (`src/frontend/App.tsx`) with file upload, operation selector, noise options, and download/preview
 - Minimal styling in `src/frontend/styles.css`
 - Processing logic in `src/lib/audioProcessor.ts` using `@ffmpeg/ffmpeg`
+- Trimming UI (`src/frontend/components/TrimSection.tsx`) uses WaveSurfer regions for precise start/end selection plus optional silence stripping
+- Waveform generator (`src/frontend/components/VisualizerSection.tsx`) renders WaveSurfer output and exports a PNG with your styling choices
 
 ## Implementation notes
 
-- Uses `@ffmpeg/ffmpeg` with `@ffmpeg/core@0.12.10` loaded from jsdelivr CDN
+- Uses `@ffmpeg/ffmpeg` with the multi-threaded `@ffmpeg/core-mt@0.12.10` loaded from jsdelivr CDN for faster, parallelized processing in the worker
 - Noise pipeline: `anoisesrc` → optional `highpass/lowpass` for pink → `concat` with the uploaded track
 - Cover extraction maps the embedded image stream with `-an -vcodec copy`
 - No file size limits since everything runs client-side
