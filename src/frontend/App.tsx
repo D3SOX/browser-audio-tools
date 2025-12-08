@@ -13,6 +13,7 @@ import { RetagSection } from "./components/RetagSection";
 import { NoiseOptions } from "./components/NoiseOptions";
 import { ActionsSection } from "./components/ActionsSection";
 import { TrimSection, type TrimOptions } from "./components/TrimSection";
+import { VisualizerSection, type VisualizerHandle } from "./components/VisualizerSection";
 import { Footer } from "./components/Footer";
 import type { Operation } from "./types";
 
@@ -79,6 +80,7 @@ const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
   "generic-convert": createEmptyResult(),
   retag: createEmptyResult(),
   trim: createEmptyResult(),
+  visualize: createEmptyResult(),
 });
 
 export default function App() {
@@ -95,6 +97,7 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false);
   const [resultsByOperation, setResultsByOperation] = useState<Record<Operation, OperationResult>>(createEmptyResultsMap);
   const currentOperationRef = useRef<Operation>("noise");
+  const visualizerRef = useRef<VisualizerHandle>(null);
   const [batchPreviews, setBatchPreviews] = useState<{ name: string; url: string; type: "audio" | "image" }[] | null>(null);
 
   // Convert operation state
@@ -127,6 +130,10 @@ export default function App() {
   const [trimFile, setTrimFile] = useState<File | null>(null);
   const [trimOptions, setTrimOptions] = useState<TrimOptions>(defaultTrimOptions);
   const [dragOverTrim, setDragOverTrim] = useState(false);
+
+  // Visualizer operation state
+  const [visualizerFile, setVisualizerFile] = useState<File | null>(null);
+  const [dragOverVisualizer, setDragOverVisualizer] = useState(false);
 
   const isLosslessFormat = LOSSLESS_FORMATS.includes(genericConvertOptions.format);
   const isTrimLosslessFormat = LOSSLESS_FORMATS.includes(trimOptions.format);
@@ -396,6 +403,26 @@ export default function App() {
     [handleTrimFileSelect]
   );
 
+  const handleVisualizerFileSelect = useCallback(
+    (nextFile: File | null) => {
+      setVisualizerFile(nextFile);
+      clearResults();
+    },
+    [clearResults]
+  );
+
+  const handleVisualizerDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault();
+      setDragOverVisualizer(false);
+      const droppedFile = e.dataTransfer.files?.[0];
+      if (droppedFile && droppedFile.type.startsWith("audio/")) {
+        handleVisualizerFileSelect(droppedFile);
+      }
+    },
+    [handleVisualizerFileSelect]
+  );
+
   const handleFilesSelect = useCallback(
     (nextFiles: File[]) => {
       setFiles(nextFiles);
@@ -450,6 +477,7 @@ export default function App() {
     setRetagMetadata(defaultMetadata);
     setTrimFile(null);
     setTrimOptions(defaultTrimOptions);
+    setVisualizerFile(null);
     if (convertCoverPreviewUrl) {
       URL.revokeObjectURL(convertCoverPreviewUrl);
     }
@@ -501,6 +529,11 @@ export default function App() {
       }
       if (trimOptions.startTime >= trimOptions.endTime) {
         setError("Start time must be before end time.");
+        return;
+      }
+    } else if (activeOperation === "visualize") {
+      if (!visualizerFile) {
+        setError("Please choose an audio file to visualize.");
         return;
       }
     } else if (files.length === 0) {
@@ -683,6 +716,23 @@ export default function App() {
           progress: null,
           processing: false,
         });
+      } else if (activeOperation === "visualize") {
+        if (!visualizerRef.current) {
+          throw new Error("Visualizer not ready");
+        }
+        setProgress(50);
+        const result = await visualizerRef.current.exportToPng();
+        const url = URL.createObjectURL(result.blob);
+        replaceOperationResult(activeOperation, {
+          status: "Waveform PNG generated. Ready to download.",
+          error: null,
+          downloadUrl: url,
+          downloadName: result.filename,
+          previewUrl: url,
+          batchPreviews: null,
+          progress: null,
+          processing: false,
+        });
       }
     } catch (err) {
       console.error(err);
@@ -702,7 +752,7 @@ export default function App() {
         <main className="card">
           <OperationPicker operation={operation} onChange={handleOperationChange} />
 
-          {operation !== "convert" && operation !== "generic-convert" && operation !== "retag" && operation !== "trim" && (
+          {operation !== "convert" && operation !== "generic-convert" && operation !== "retag" && operation !== "trim" && operation !== "visualize" && (
             <AudioFilePicker files={files} dragOver={dragOver} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onChange={handleFileChange} />
           )}
 
@@ -799,6 +849,24 @@ export default function App() {
               }}
               onFileChange={handleTrimFileSelect}
               onOptionsChange={setTrimOptions}
+            />
+          )}
+
+          {operation === "visualize" && (
+            <VisualizerSection
+              ref={visualizerRef}
+              file={visualizerFile}
+              dragOver={dragOverVisualizer}
+              onDrop={handleVisualizerDrop}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOverVisualizer(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                setDragOverVisualizer(false);
+              }}
+              onFileChange={handleVisualizerFileSelect}
             />
           )}
 

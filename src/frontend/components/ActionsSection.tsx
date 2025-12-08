@@ -45,10 +45,12 @@ export function ActionsSection({
             ? "Retag MP3"
             : operation === "trim"
               ? "Trim audio"
-              : `Convert to ${genericConvertOptions.format.toUpperCase()}`;
+              : operation === "visualize"
+                ? "Generate PNG"
+                : `Convert to ${genericConvertOptions.format.toUpperCase()}`;
 
-  // Trim has extra sections so the step number is 5
-  const stepNumber = operation === "trim" ? 5 : 4;
+  // Trim has extra sections so the step number is 5, visualize only has 3 sections before run
+  const stepNumber = operation === "trim" ? 5 : operation === "visualize" ? 4 : 4;
 
   return (
     <section className="section">
@@ -115,7 +117,7 @@ export function ActionsSection({
           )}
           {!batchPreviews && previewUrl && (
             <div className="result-preview">
-              {operation === "cover" ? <img src={previewUrl} alt="Cover preview" /> : <audio controls src={previewUrl} />}
+              {operation === "cover" || operation === "visualize" ? <img src={previewUrl} alt="Preview" /> : <audio controls src={previewUrl} />}
             </div>
           )}
         </div>

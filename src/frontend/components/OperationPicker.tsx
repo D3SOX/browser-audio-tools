@@ -83,6 +83,17 @@ export function OperationPicker({ operation, onChange }: OperationPickerProps) {
           </div>
           <span className="radio-card-label">Trim Audio</span>
         </label>
+        <label className={`radio-card ${operation === "visualize" ? "selected" : ""}`}>
+          <input type="radio" name="operation" value="visualize" checked={operation === "visualize"} onChange={() => onChange("visualize")} />
+          <div className="radio-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M2 10s3-3 5-3 5 5 5 5 3-3 5-3 5 3 5 3" />
+              <path d="M2 14s3 3 5 3 5-5 5-5 3 3 5 3 5-3 5-3" />
+              <rect x="1" y="5" width="22" height="14" rx="2" />
+            </svg>
+          </div>
+          <span className="radio-card-label">Visualizer</span>
+        </label>
       </div>
     </section>
   );
