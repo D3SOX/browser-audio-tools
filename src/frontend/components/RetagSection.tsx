@@ -113,50 +113,47 @@ export function RetagSection({
       <section className="section">
         <h2 className="section-title">
           <span className="step-number">2</span>
-          Choose an MP3 file
+          Choose files
         </h2>
-        <div className={`file-dropzone ${dragOver ? "drag-over" : ""} ${file ? "has-file" : ""}`} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}>
-          <input type="file" accept=".mp3,audio/mpeg" onChange={handleFileChange} className="file-input-hidden" id="retag-input" />
-          <label htmlFor="retag-input" className="file-dropzone-label">
-            <div className="file-icon">
-              {file ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 12l2 2 4-4" />
-                  <circle cx="12" cy="12" r="10" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17,8 12,3 7,8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-              )}
-            </div>
-            <div className="file-text">
-              {file ? (
-                <>
-                  <span className="file-name">{file.name}</span>
-                  <span className="file-size">{formatSize(file.size)}</span>
-                </>
-              ) : (
-                <>
-                  <span className="file-cta">Click to browse or drag & drop</span>
-                  <span className="file-hint">MP3 files only</span>
-                </>
-              )}
-            </div>
-          </label>
-        </div>
+        <p className="hint">Pick the MP3 to retag. Optionally pull tags and cover art from another MP3.</p>
+        <div className="convert-files-grid">
+          <div className={`file-dropzone file-dropzone-small ${dragOver ? "drag-over" : ""} ${file ? "has-file" : ""}`} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}>
+            <input type="file" accept=".mp3,audio/mpeg" onChange={handleFileChange} className="file-input-hidden" id="retag-input" />
+            <label htmlFor="retag-input" className="file-dropzone-label">
+              <div className="file-icon">
+                {file ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 12l2 2 4-4" />
+                    <circle cx="12" cy="12" r="10" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17,8 12,3 7,8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                )}
+              </div>
+              <div className="file-text">
+                {file ? (
+                  <>
+                    <span className="file-name">{file.name}</span>
+                    <span className="file-size">{formatSize(file.size)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="file-cta">MP3 file to retag</span>
+                    <span className="file-hint">Click or drop your MP3</span>
+                  </>
+                )}
+              </div>
+            </label>
+          </div>
 
-        {/* Donor MP3 section */}
-        <div className="donor-section">
-          <h3 className="donor-title">
-            Import metadata from another MP3 <span className="optional-label">(optional)</span>
-          </h3>
           <div className={`file-dropzone file-dropzone-small ${dragOverDonor ? "drag-over" : ""} ${donorFile ? "has-file" : ""}`} onDrop={onDonorDrop} onDragOver={onDonorDragOver} onDragLeave={onDonorDragLeave}>
             <input type="file" accept=".mp3,audio/mpeg" onChange={handleDonorFileChange} className="file-input-hidden" id="donor-input" />
             <label htmlFor="donor-input" className="file-dropzone-label">
-              <div className="file-icon file-icon-small">
+              <div className="file-icon">
                 {donorFile ? (
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M9 12l2 2 4-4" />
@@ -178,61 +175,61 @@ export function RetagSection({
                   </>
                 ) : (
                   <>
-                    <span className="file-cta">Choose donor MP3</span>
-                    <span className="file-hint">MP3 to copy metadata from</span>
+                    <span className="file-cta">MP3 donor (optional)</span>
+                    <span className="file-hint">Import tags & artwork from</span>
                   </>
                 )}
               </div>
             </label>
           </div>
-
-          {loadingDonorMetadata && (
-            <p className="hint">Loading donor metadata...</p>
-          )}
-
-          {donorFile && !loadingDonorMetadata && hasAnyDonorData && (
-            <div className="donor-import-panel">
-              <div className="donor-fields-list">
-                {availableFields.map((field) => {
-                  const value = getDonorFieldValue(field);
-                  const hasValue = value !== null;
-                  return (
-                    <label key={field} className={`donor-field-item checkbox-label ${!hasValue ? "donor-field-disabled" : ""}`}>
-                      <input
-                        type="checkbox"
-                        checked={selectedFields.has(field) && hasValue}
-                        disabled={!hasValue}
-                        onChange={() => toggleField(field)}
-                      />
-                      <span className="checkbox-custom">
-                        <CheckIcon />
-                      </span>
-                      <span className="donor-field-label">{FIELD_LABELS[field]}</span>
-                      {hasValue && field !== "cover" && (
-                        <span className="donor-field-value">{value}</span>
-                      )}
-                      {hasValue && field === "cover" && donorCoverPreviewUrl && (
-                        <img src={donorCoverPreviewUrl} alt="Donor cover" className="donor-cover-preview" />
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-small"
-                onClick={handleImport}
-                disabled={selectedFields.size === 0}
-              >
-                Import selected fields
-              </button>
-            </div>
-          )}
-
-          {donorFile && !loadingDonorMetadata && !hasAnyDonorData && (
-            <p className="hint hint-warning">No metadata found in donor file.</p>
-          )}
         </div>
+
+        {loadingDonorMetadata && (
+          <p className="hint">Loading donor metadata...</p>
+        )}
+
+        {donorFile && !loadingDonorMetadata && hasAnyDonorData && (
+          <div className="donor-import-panel">
+            <div className="donor-fields-list">
+              {availableFields.map((field) => {
+                const value = getDonorFieldValue(field);
+                const hasValue = value !== null;
+                return (
+                  <label key={field} className={`donor-field-item checkbox-label ${!hasValue ? "donor-field-disabled" : ""}`}>
+                    <input
+                      type="checkbox"
+                      checked={selectedFields.has(field) && hasValue}
+                      disabled={!hasValue}
+                      onChange={() => toggleField(field)}
+                    />
+                    <span className="checkbox-custom">
+                      <CheckIcon />
+                    </span>
+                    <span className="donor-field-label">{FIELD_LABELS[field]}</span>
+                    {hasValue && field !== "cover" && (
+                      <span className="donor-field-value">{value}</span>
+                    )}
+                    {hasValue && field === "cover" && donorCoverPreviewUrl && (
+                      <img src={donorCoverPreviewUrl} alt="Donor cover" className="donor-cover-preview" />
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-small"
+              onClick={handleImport}
+              disabled={selectedFields.size === 0}
+            >
+              Import selected fields
+            </button>
+          </div>
+        )}
+
+        {donorFile && !loadingDonorMetadata && !hasAnyDonorData && (
+          <p className="hint hint-warning">No metadata found in donor file.</p>
+        )}
       </section>
 
       <section className="section">
