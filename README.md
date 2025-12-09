@@ -4,6 +4,8 @@ A Bun + TypeScript + Astro + React app for quick, in-browser audio tweaks: add p
 
 For broader, non-audio conversions, I recommend the open-source VERT project: [vert.sh](https://vert.sh/) / [github.com/VERT-sh/VERT](https://github.com/VERT-sh/VERT). This app stays focused on audio-specific workflows.
 
+Another great recommendation for more browser-based tools is the open-source BrowseryTools project: [browserytools.com](https://browserytools.com/) / [github.com/aghyad97/browserytools](https://github.com/aghyad97/browserytools).
+
 ## Setup
 
 ```bash
