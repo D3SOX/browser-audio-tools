@@ -3,7 +3,7 @@ import type { Channels, GenericConvertOptions, OutputFormat, SampleRate } from "
 import { formatSupportsCoverArt } from "../api";
 import { formatSize } from "../utils/formatSize";
 
-type GenericConvertSectionProps = {
+type ConvertSectionProps = {
   files: File[];
   dragOver: boolean;
   options: GenericConvertOptions;
@@ -16,7 +16,7 @@ type GenericConvertSectionProps = {
   onOptionChange: <K extends keyof GenericConvertOptions>(key: K, value: GenericConvertOptions[K]) => void;
 };
 
-export function GenericConvertSection({
+export function ConvertSection({
   files,
   dragOver,
   options,
@@ -27,7 +27,7 @@ export function GenericConvertSection({
   onDragLeave,
   onFilesChange,
   onOptionChange,
-}: GenericConvertSectionProps) {
+}: ConvertSectionProps) {
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files ?? []);
     onFilesChange(selectedFiles);

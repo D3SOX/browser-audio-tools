@@ -21,8 +21,8 @@ import { useTheme } from "./hooks/useTheme";
 import { Hero } from "./components/Hero";
 import { OperationPicker } from "./components/OperationPicker";
 import { AudioFilePicker } from "./components/AudioFilePicker";
-import { ConvertFilesSection } from "./components/ConvertFilesSection";
-import { GenericConvertSection } from "./components/GenericConvertSection";
+import { RetagWavSection } from "./components/RetagWavSection";
+import { ConvertSection } from "./components/ConvertSection";
 import { RetagSection } from "./components/RetagSection";
 import { NoiseOptions } from "./components/NoiseOptions";
 import { ActionsSection } from "./components/ActionsSection";
@@ -961,7 +961,7 @@ export default function App() {
           )}
 
           {operation === "retag-wav" && (
-            <ConvertFilesSection
+            <RetagWavSection
               wavFile={wavFile}
               mp3SourceFile={mp3SourceFile}
               dragOverWav={dragOverWav}
@@ -995,7 +995,7 @@ export default function App() {
           )}
 
           {operation === "convert" && (
-            <GenericConvertSection
+            <ConvertSection
               files={genericConvertFiles}
               dragOver={dragOverGeneric}
               options={genericConvertOptions}

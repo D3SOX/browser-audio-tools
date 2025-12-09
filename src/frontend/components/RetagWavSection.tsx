@@ -3,7 +3,7 @@ import type { ID3Metadata } from "../api";
 import { formatSize } from "../utils/formatSize";
 import { CoverArtPicker } from "./CoverArtPicker";
 
-type ConvertFilesSectionProps = {
+type RetagWavSectionProps = {
   wavFile: File | null;
   mp3SourceFile: File | null;
   dragOverWav: boolean;
@@ -23,7 +23,7 @@ type ConvertFilesSectionProps = {
   onCoverChange: (file: File | null) => void;
 };
 
-export function ConvertFilesSection({
+export function RetagWavSection({
   wavFile,
   mp3SourceFile,
   dragOverWav,
@@ -41,7 +41,7 @@ export function ConvertFilesSection({
   onMp3Change,
   onMetadataChange,
   onCoverChange,
-}: ConvertFilesSectionProps) {
+}: RetagWavSectionProps) {
   const handleWavChange = (e: ChangeEvent<HTMLInputElement>) => onWavChange(e.target.files?.[0] ?? null);
   const handleMp3Change = (e: ChangeEvent<HTMLInputElement>) => onMp3Change(e.target.files?.[0] ?? null);
 
