@@ -1061,6 +1061,10 @@ select:disabled {
   line-height: 1.5;
 }
 
+.footer-hint--spaced {
+  margin-top: 0.4rem;
+}
+
 .footer-hint a {
   color: var(--text-secondary);
   text-decoration: underline;

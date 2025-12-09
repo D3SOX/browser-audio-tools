@@ -10,12 +10,19 @@ export function Footer({ analyticsEnabled, onToggleAnalytics }: Props) {
         Runs entirely in your browser via ffmpeg.wasm. Files never leave your
         device.
       </p>
-      <p className="footer-hint">
+      <p className="footer-hint footer-hint--spaced">
         Need broader file conversions? Try{' '}
         <a href="https://vert.sh/" target="_blank" rel="noreferrer">
           VERT
         </a>{' '}
         (open source) — this site focuses on niche audio workflows.
+      </p>
+      <p className="footer-hint footer-hint--spaced">
+        Need more browser-based tools? Try{' '}
+        <a href="https://browserytools.com/" target="_blank" rel="noreferrer">
+          BrowseryTools
+        </a>{' '}
+        (open source) — a collection of browser-based tools for various purposes.
       </p>
       <div className="footer-analytics-toggle">
         <span className="analytics-toggle-label">Anonymous analytics:</span>
