@@ -323,7 +323,7 @@ export const VisualizerSection = forwardRef<
                     Click to browse or drag & drop
                   </span>
                   <span className="file-hint">
-                    Supports WAV, FLAC, AIFF, MP3, OGG, and more.
+                    Supports WAV, FLAC, AIFF, MP3, OGG, AAC (m4a), and more.
                   </span>
                 </>
               )}

@@ -99,8 +99,8 @@ export function AudioFilePicker({
               <>
                 <span className="file-cta">Click to browse or drag & drop</span>
                 <span className="file-hint">
-                  MP3, M4A, WAV preferred. Select multiple files for batch
-                  processing.
+                  Supports WAV, FLAC, AIFF, MP3, OGG, AAC (m4a), and more.
+                  Select multiple files for batch processing.
                 </span>
               </>
             )}
