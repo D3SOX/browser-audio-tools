@@ -2,26 +2,33 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Theme } from '../types';
 
 export function useTheme() {
+  const isBrowser = typeof window !== 'undefined';
   const [theme, setThemeState] = useState<Theme>(() => {
+    if (!isBrowser) return 'system';
     const stored = localStorage.getItem('theme') as Theme | null;
     return stored ?? 'system';
   });
 
   const resolvedTheme = useMemo(() => {
+    if (!isBrowser) {
+      return theme === 'dark' ? 'dark' : 'light';
+    }
     if (theme === 'system') {
       return window.matchMedia('(prefers-color-scheme: dark)').matches
         ? 'dark'
         : 'light';
     }
     return theme;
-  }, [theme]);
+  }, [theme, isBrowser]);
 
   useEffect(() => {
+    if (!isBrowser) return;
     const root = document.documentElement;
     root.setAttribute('data-theme', resolvedTheme);
-  }, [resolvedTheme]);
+  }, [resolvedTheme, isBrowser]);
 
   useEffect(() => {
+    if (!isBrowser || theme !== 'system') return;
     if (theme !== 'system') return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = () => {
@@ -35,6 +42,10 @@ export function useTheme() {
   }, [theme]);
 
   const setTheme = useCallback((next: Theme) => {
+    if (!isBrowser) {
+      setThemeState(next);
+      return;
+    }
     const nextResolved =
       next === 'system'
         ? window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -67,6 +78,9 @@ export function useTheme() {
 
     transition.ready.then(() => {
       const x = window.innerWidth;
+      // Math.hypot returns the Euclidean distance from (0,0) to (x, window.innerHeight),
+      // effectively giving the farthest distance from the top-right corner to any corner of the viewport.
+      // This is used to ensure the animated circle covers the entire screen.
       const maxRadius = Math.hypot(x, window.innerHeight);
 
       const opts: KeyframeAnimationOptions = {

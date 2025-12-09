@@ -45,6 +45,11 @@ import {
 import { useTheme } from './hooks/useTheme';
 import type { Operation } from './types';
 
+type AppProps = {
+  showHero?: boolean;
+  wrapWithLayout?: boolean;
+};
+
 const OPERATIONS: Operation[] = [
   'noise',
   'cover',
@@ -56,6 +61,7 @@ const OPERATIONS: Operation[] = [
 ];
 
 const getOperationFromHash = (): Operation | null => {
+  if (typeof window === 'undefined') return null;
   const hash = window.location.hash.slice(1);
   return OPERATIONS.includes(hash as Operation) ? (hash as Operation) : null;
 };
@@ -137,7 +143,8 @@ const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
   visualize: createEmptyResult(),
 });
 
-export default function App() {
+export default function App({ showHero = true, wrapWithLayout = true }: AppProps) {
+  const isBrowser = typeof window !== 'undefined';
   const { theme, setTheme } = useTheme();
   const { consent, setConsent } = useAnalyticsConsent();
   const [files, setFiles] = useState<File[]>([]);
@@ -245,10 +252,11 @@ export default function App() {
 
   // Set initial hash on mount if not already valid
   useEffect(() => {
+    if (!isBrowser) return;
     if (!getOperationFromHash()) {
       window.history.replaceState(null, '', `#${operation}`);
     }
-  }, [operation]);
+  }, [operation, isBrowser]);
 
   const replaceOperationResult = useCallback(
     (op: Operation, nextResult: OperationResult) => {
@@ -298,7 +306,7 @@ export default function App() {
   const handleOperationChange = useCallback(
     (nextOperation: Operation) => {
       setOperation(nextOperation);
-      if (window.location.hash.slice(1) !== nextOperation) {
+      if (isBrowser && window.location.hash.slice(1) !== nextOperation) {
         window.history.replaceState(null, '', `#${nextOperation}`);
       }
       const savedResult =
@@ -316,6 +324,7 @@ export default function App() {
   );
 
   useEffect(() => {
+    if (!isBrowser) return;
     const onHashChange = () => {
       const hashOp = getOperationFromHash();
       if (hashOp && hashOp !== operation) {
@@ -324,7 +333,7 @@ export default function App() {
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, [operation, handleOperationChange]);
+  }, [operation, handleOperationChange, isBrowser]);
 
   const handleWavFileSelect = useCallback(
     async (nextFile: File | null) => {
@@ -1113,8 +1122,8 @@ export default function App() {
     }
   };
 
-  return (
-    <div className="app-wrapper">
+  const content = (
+    <>
       {consent === true && (
         <>
           <SpeedInsights />
@@ -1128,7 +1137,7 @@ export default function App() {
         />
       )}
       <div className="app-container">
-        <Hero theme={theme} setTheme={setTheme} />
+        {showHero && <Hero theme={theme} setTheme={setTheme} />}
 
         <main className="card">
           <OperationPicker
@@ -1335,6 +1344,12 @@ export default function App() {
           />
         </main>
       </div>
-    </div>
+    </>
   );
+
+  if (!wrapWithLayout) {
+    return content;
+  }
+
+  return <div className="app-wrapper">{content}</div>;
 }

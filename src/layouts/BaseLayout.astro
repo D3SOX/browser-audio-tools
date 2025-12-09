@@ -1,0 +1,21 @@
+---
+const {
+  title = 'Browser Audio Tools',
+  description = 'Client-side audio utilities: convert, retag, trim, visualize, and more directly in your browser.',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <slot name="head" />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+

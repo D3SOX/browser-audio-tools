@@ -3,22 +3,24 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
     "lint": "biome check",
     "lint:fix": "biome check --write",
     "format": "biome format --write"
   },
   "devDependencies": {
+    "@astrojs/react": "^4.4.2",
+    "@astrojs/vercel": "^9.0.2",
     "@biomejs/biome": "2.3.8",
     "@types/bun": "latest",
     "@types/dom-view-transitions": "^1.0.6",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.1",
-    "typescript": "^5.9.3",
-    "vite": "^7.2.6"
+    "astro": "^5.16.4",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",

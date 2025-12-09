@@ -19,10 +19,42 @@ export interface ProcessResult {
 }
 
 const CORE_VERSION = '0.12.10';
-const CORE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@${CORE_VERSION}/dist/esm`;
+const CORE_MT_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@${CORE_VERSION}/dist/esm`;
+const CORE_SINGLE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/esm`;
 
 let ffmpeg: FFmpeg | null = null;
 let loadPromise: Promise<void> | null = null;
+let coreSelectionLogged = false;
+
+function canUseMultiThreadedCore() {
+  return (
+    typeof SharedArrayBuffer !== 'undefined' &&
+    typeof Atomics !== 'undefined' &&
+    typeof crossOriginIsolated !== 'undefined' &&
+    crossOriginIsolated === true
+  );
+}
+
+function selectCoreBaseURL(): { baseURL: string; reason: string } {
+  const missing: string[] = [];
+  if (typeof SharedArrayBuffer === 'undefined') missing.push('SharedArrayBuffer');
+  if (typeof Atomics === 'undefined') missing.push('Atomics');
+  if (typeof crossOriginIsolated === 'undefined' || crossOriginIsolated !== true) {
+    missing.push('crossOriginIsolated');
+  }
+
+  if (missing.length === 0) {
+    return {
+      baseURL: CORE_MT_BASE_URL,
+      reason: 'Using multi-threaded core: crossOriginIsolated with SAB/Atomics available.',
+    };
+  }
+
+  return {
+    baseURL: CORE_SINGLE_BASE_URL,
+    reason: `Falling back to single-threaded core: missing ${missing.join(', ')}.`,
+  };
+}
 
 function translateFFmpegLoadError(error: unknown): Error {
   if (error instanceof Error) {
@@ -41,17 +73,29 @@ async function ensureFFmpegLoaded(): Promise<FFmpeg> {
   if (!loadPromise) {
     loadPromise = (async () => {
       try {
+        const { baseURL: coreBaseURL, reason } = selectCoreBaseURL();
+        if (!coreSelectionLogged) {
+          console.info('[ffmpeg] core selection', {
+            version: CORE_VERSION,
+            core: coreBaseURL.includes('core-mt') ? 'core-mt (multi-threaded)' : 'core (single-threaded)',
+            reason,
+          });
+          coreSelectionLogged = true;
+        }
+        // In preview/static hosting environments we may not be cross-origin
+        // isolated, so fall back to the single-threaded core to avoid
+        // SharedArrayBuffer errors.
         ffmpeg = new FFmpeg();
         const coreURL = await toBlobURL(
-          `${CORE_BASE_URL}/ffmpeg-core.js`,
+          `${coreBaseURL}/ffmpeg-core.js`,
           'text/javascript',
         );
         const wasmURL = await toBlobURL(
-          `${CORE_BASE_URL}/ffmpeg-core.wasm`,
+          `${coreBaseURL}/ffmpeg-core.wasm`,
           'application/wasm',
         );
         const workerURL = await toBlobURL(
-          `${CORE_BASE_URL}/ffmpeg-core.worker.js`,
+          `${coreBaseURL}/ffmpeg-core.worker.js`,
           'text/javascript',
         );
         await ffmpeg.load({ coreURL, wasmURL, workerURL });
