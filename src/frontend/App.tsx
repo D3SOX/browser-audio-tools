@@ -1155,22 +1155,38 @@ export default function App({
             onChange={handleOperationChange}
           />
 
-          {operation !== 'retag-wav' &&
-            operation !== 'convert' &&
-            operation !== 'retag' &&
-            operation !== 'trim' &&
-            operation !== 'visualize' && (
-              <AudioFilePicker
-                files={files}
-                dragOver={dragOver}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onChange={handleFileChange}
-              />
-            )}
+          <div
+            hidden={
+              operation === 'retag-wav' ||
+              operation === 'convert' ||
+              operation === 'retag' ||
+              operation === 'trim' ||
+              operation === 'visualize'
+            }
+            aria-hidden={
+              operation === 'retag-wav' ||
+              operation === 'convert' ||
+              operation === 'retag' ||
+              operation === 'trim' ||
+              operation === 'visualize'
+            }
+            data-operation-section="audio-file-picker"
+          >
+            <AudioFilePicker
+              files={files}
+              dragOver={dragOver}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onChange={handleFileChange}
+            />
+          </div>
 
-          {operation === 'retag-wav' && (
+          <div
+            hidden={operation !== 'retag-wav'}
+            aria-hidden={operation !== 'retag-wav'}
+            data-operation-section="retag-wav"
+          >
             <RetagWavSection
               wavFile={wavFile}
               mp3SourceFile={mp3SourceFile}
@@ -1202,9 +1218,13 @@ export default function App({
               onMetadataChange={updateMetadata}
               onCoverChange={handleConvertCoverChange}
             />
-          )}
+          </div>
 
-          {operation === 'convert' && (
+          <div
+            hidden={operation !== 'convert'}
+            aria-hidden={operation !== 'convert'}
+            data-operation-section="convert"
+          >
             <ConvertSection
               files={genericConvertFiles}
               dragOver={dragOverGeneric}
@@ -1225,9 +1245,13 @@ export default function App({
               onFilesChange={handleGenericConvertFilesSelect}
               onOptionChange={updateGenericConvertOption}
             />
-          )}
+          </div>
 
-          {operation === 'retag' && (
+          <div
+            hidden={operation !== 'retag'}
+            aria-hidden={operation !== 'retag'}
+            data-operation-section="retag"
+          >
             <RetagSection
               file={retagFile}
               dragOver={dragOverRetag}
@@ -1263,9 +1287,13 @@ export default function App({
               onDonorFileChange={handleDonorFileSelect}
               onImportFields={handleImportDonorFields}
             />
-          )}
+          </div>
 
-          {operation === 'trim' && (
+          <div
+            hidden={operation !== 'trim'}
+            aria-hidden={operation !== 'trim'}
+            data-operation-section="trim"
+          >
             <TrimSection
               file={trimFile}
               dragOver={dragOverTrim}
@@ -1283,9 +1311,13 @@ export default function App({
               onFileChange={handleTrimFileSelect}
               onOptionsChange={setTrimOptions}
             />
-          )}
+          </div>
 
-          {operation === 'visualize' && (
+          <div
+            hidden={operation !== 'visualize'}
+            aria-hidden={operation !== 'visualize'}
+            data-operation-section="visualize"
+          >
             <VisualizerSection
               ref={visualizerRef}
               file={visualizerFile}
@@ -1301,13 +1333,21 @@ export default function App({
               }}
               onFileChange={handleVisualizerFileSelect}
             />
-          )}
+          </div>
 
-          {operation === 'noise' && (
+          <div
+            hidden={operation !== 'noise'}
+            aria-hidden={operation !== 'noise'}
+            data-operation-section="noise"
+          >
             <NoiseOptions options={options} onChange={updateOption} />
-          )}
+          </div>
 
-          {operation === 'cover' && (
+          <div
+            hidden={operation !== 'cover'}
+            aria-hidden={operation !== 'cover'}
+            data-operation-section="cover"
+          >
             <section className="section">
               <h2 className="section-title">
                 <span className="step-number">3</span>
@@ -1317,9 +1357,13 @@ export default function App({
                 We will extract the embedded cover as a JPEG if present.
               </p>
             </section>
-          )}
+          </div>
 
-          {(operation === 'retag-wav' || operation === 'retag') && (
+          <div
+            hidden={operation !== 'retag-wav' && operation !== 'retag'}
+            aria-hidden={operation !== 'retag-wav' && operation !== 'retag'}
+            data-operation-section="output-filename"
+          >
             <OutputFilenameSection
               outputFilename={outputFilename}
               onFilenameChange={setOutputFilename}
@@ -1329,7 +1373,7 @@ export default function App({
                 operation === 'retag-wav' ? 'output.mp3' : 'output_retagged.mp3'
               }
             />
-          )}
+          </div>
 
           <ActionsSection
             processing={processing}
