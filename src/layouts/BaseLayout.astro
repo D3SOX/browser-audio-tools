@@ -12,6 +12,27 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <script is:inline>
+      (() => {
+        const doc = document.documentElement;
+        const storedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = storedTheme ?? 'system';
+        const resolvedTheme =
+          theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme;
+        doc.setAttribute('data-theme', resolvedTheme);
+        // Share with React hooks to avoid re-render mismatch
+        window.__INITIAL_THEME__ = theme;
+
+        const storedConsent = localStorage.getItem('analytics-consent');
+        if (storedConsent === 'true') {
+          window.__INITIAL_CONSENT__ = true;
+        } else if (storedConsent === 'false') {
+          window.__INITIAL_CONSENT__ = false;
+        }
+      })();
+    </script>
+    <meta name="color-scheme" content="light dark" />
     <slot name="head" />
   </head>
   <body>

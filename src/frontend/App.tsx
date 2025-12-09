@@ -143,14 +143,15 @@ const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
   visualize: createEmptyResult(),
 });
 
-export default function App({ showHero = true, wrapWithLayout = true }: AppProps) {
+export default function App({
+  showHero = true,
+  wrapWithLayout = true,
+}: AppProps) {
   const isBrowser = typeof window !== 'undefined';
   const { theme, setTheme } = useTheme();
   const { consent, setConsent } = useAnalyticsConsent();
   const [files, setFiles] = useState<File[]>([]);
-  const [operation, setOperation] = useState<Operation>(
-    () => getOperationFromHash() ?? 'noise',
-  );
+  const [operation, setOperation] = useState<Operation>('noise');
   const [options, setOptions] = useState<ProcessOptions>(defaultOptions);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +160,7 @@ export default function App({ showHero = true, wrapWithLayout = true }: AppProps
   const [downloadName, setDownloadName] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const [resultsByOperation, setResultsByOperation] = useState<
     Record<Operation, OperationResult>
   >(createEmptyResultsMap);
@@ -250,13 +252,21 @@ export default function App({ showHero = true, wrapWithLayout = true }: AppProps
     currentOperationRef.current = operation;
   }, [operation]);
 
+  // Track client hydration to avoid rendering client-only UI (e.g., modals) during SSR.
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   // Set initial hash on mount if not already valid
   useEffect(() => {
     if (!isBrowser) return;
-    if (!getOperationFromHash()) {
-      window.history.replaceState(null, '', `#${operation}`);
+    const hashOp = getOperationFromHash();
+    if (hashOp) {
+      setOperation(hashOp);
+    } else {
+      window.history.replaceState(null, '', '#noise');
     }
-  }, [operation, isBrowser]);
+  }, [isBrowser]);
 
   const replaceOperationResult = useCallback(
     (op: Operation, nextResult: OperationResult) => {
@@ -320,7 +330,7 @@ export default function App({ showHero = true, wrapWithLayout = true }: AppProps
       setProgress(savedResult.progress);
       setProcessing(savedResult.processing);
     },
-    [resultsByOperation],
+    [resultsByOperation, isBrowser],
   );
 
   useEffect(() => {
@@ -1130,7 +1140,7 @@ export default function App({ showHero = true, wrapWithLayout = true }: AppProps
           <Analytics />
         </>
       )}
-      {consent === null && (
+      {hydrated && consent === null && (
         <AnalyticsConsentModal
           onAccept={() => setConsent(true)}
           onDecline={() => setConsent(false)}
