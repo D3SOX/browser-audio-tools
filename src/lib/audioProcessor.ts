@@ -245,11 +245,13 @@ export interface ID3Metadata {
 
 export async function readMetadata(
   input: Uint8Array,
+  inputFilename?: string,
   onProgress?: ProgressCallback,
 ): Promise<ID3Metadata> {
   const ff = await ensureFFmpegLoaded();
 
-  const inputName = 'meta_input.mp3';
+  const ext = inputFilename?.split('.').pop()?.toLowerCase() ?? 'mp3';
+  const inputName = `meta_input.${ext}`;
   const outputName = 'metadata.txt';
 
   await ff.writeFile(inputName, input);

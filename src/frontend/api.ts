@@ -99,7 +99,7 @@ export async function extractCover(
 
 export async function readMetadataFromFile(file: File): Promise<ID3Metadata> {
   const input = new Uint8Array(await file.arrayBuffer());
-  return readMetadataLib(input);
+  return readMetadataLib(input, file.name);
 }
 
 export async function convertWavToMp3(

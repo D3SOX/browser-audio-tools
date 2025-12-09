@@ -327,9 +327,21 @@ export default function App() {
   }, [operation, handleOperationChange]);
 
   const handleWavFileSelect = useCallback(
-    (nextFile: File | null) => {
+    async (nextFile: File | null) => {
       setWavFile(nextFile);
       clearResults();
+
+      if (nextFile) {
+        setLoadingMetadata(true);
+        try {
+          const meta = await readMetadataFromFile(nextFile);
+          setMetadata(meta);
+        } catch (err) {
+          console.error('Failed to read WAV metadata:', err);
+          // Keep existing metadata on error
+        }
+        setLoadingMetadata(false);
+      }
     },
     [clearResults],
   );
