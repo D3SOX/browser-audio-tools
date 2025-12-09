@@ -339,6 +339,9 @@ body {
   padding: 1.5rem;
   box-shadow: var(--card-shadow);
   transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
 }
 
 @media (min-width: 640px) {
@@ -349,10 +352,19 @@ body {
 
 /* ===== Sections ===== */
 .section {
-  margin-bottom: 1.75rem;
+  margin-bottom: 2.25rem;
 }
 
 .section:last-of-type {
+  margin-bottom: 0;
+}
+
+/* Ensure spacing when sections are wrapped (per-operation divs) */
+.card > [data-operation-section] {
+  margin: 0;
+}
+
+.card > [data-operation-section]:last-of-type {
   margin-bottom: 0;
 }
 

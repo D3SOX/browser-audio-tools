@@ -42,7 +42,6 @@ import {
   type VisualizerHandle,
   VisualizerSection,
 } from './components/VisualizerSection';
-import { useTheme } from './hooks/useTheme';
 import type { Operation } from './types';
 
 
@@ -141,7 +140,6 @@ const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
 
 export default function App() {
   const isBrowser = typeof window !== 'undefined';
-  const { theme, setTheme } = useTheme();
   const { consent, setConsent } = useAnalyticsConsent();
   const [files, setFiles] = useState<File[]>([]);
   const [operation, setOperation] = useState<Operation>('noise');
@@ -1138,7 +1136,7 @@ export default function App() {
   };
 
   return (
-    <div className="app-wrapper">
+    <>
       {consent === true && (
         <>
           <SpeedInsights />
@@ -1151,257 +1149,255 @@ export default function App() {
           onDecline={() => setConsent(false)}
         />
       )}
-      <div className="app-container">
 
-        <main className="card">
-          <OperationPicker
-            operation={operation}
-            onChange={handleOperationChange}
+      <main className="card">
+        <OperationPicker
+          operation={operation}
+          onChange={handleOperationChange}
+        />
+
+        <div
+          hidden={
+            operation === 'retag-wav' ||
+            operation === 'convert' ||
+            operation === 'retag' ||
+            operation === 'trim' ||
+            operation === 'visualize'
+          }
+          aria-hidden={
+            operation === 'retag-wav' ||
+            operation === 'convert' ||
+            operation === 'retag' ||
+            operation === 'trim' ||
+            operation === 'visualize'
+          }
+          data-operation-section="audio-file-picker"
+        >
+          <AudioFilePicker
+            files={files}
+            dragOver={dragOver}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onChange={handleFileChange}
           />
+        </div>
 
-          <div
-            hidden={
-              operation === 'retag-wav' ||
-              operation === 'convert' ||
-              operation === 'retag' ||
-              operation === 'trim' ||
-              operation === 'visualize'
-            }
-            aria-hidden={
-              operation === 'retag-wav' ||
-              operation === 'convert' ||
-              operation === 'retag' ||
-              operation === 'trim' ||
-              operation === 'visualize'
-            }
-            data-operation-section="audio-file-picker"
-          >
-            <AudioFilePicker
-              files={files}
-              dragOver={dragOver}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onChange={handleFileChange}
-            />
-          </div>
-
-          <div
-            hidden={operation !== 'retag-wav'}
-            aria-hidden={operation !== 'retag-wav'}
-            data-operation-section="retag-wav"
-          >
-            <RetagWavSection
-              wavFile={wavFile}
-              mp3SourceFile={mp3SourceFile}
-              dragOverWav={dragOverWav}
-              dragOverMp3={dragOverMp3}
-              loadingMetadata={loadingMetadata}
-              metadata={metadata}
-              coverPreviewUrl={convertCoverPreviewUrl}
-              onWavDrop={handleWavDrop}
-              onMp3Drop={handleMp3Drop}
-              onWavDragOver={(e) => {
-                e.preventDefault();
-                setDragOverWav(true);
-              }}
-              onWavDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverWav(false);
-              }}
-              onMp3DragOver={(e) => {
-                e.preventDefault();
-                setDragOverMp3(true);
-              }}
-              onMp3DragLeave={(e) => {
-                e.preventDefault();
-                setDragOverMp3(false);
-              }}
-              onWavChange={handleWavFileSelect}
-              onMp3Change={handleMp3SourceSelect}
-              onMetadataChange={updateMetadata}
-              onCoverChange={handleConvertCoverChange}
-            />
-          </div>
-
-          <div
-            hidden={operation !== 'convert'}
-            aria-hidden={operation !== 'convert'}
-            data-operation-section="convert"
-          >
-            <ConvertSection
-              files={genericConvertFiles}
-              dragOver={dragOverGeneric}
-              options={genericConvertOptions}
-              isLosslessFormat={isLosslessFormat}
-              sampleRateOptions={
-                SAMPLE_RATES_BY_FORMAT[genericConvertOptions.format]
-              }
-              onDrop={handleGenericConvertDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverGeneric(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverGeneric(false);
-              }}
-              onFilesChange={handleGenericConvertFilesSelect}
-              onOptionChange={updateGenericConvertOption}
-            />
-          </div>
-
-          <div
-            hidden={operation !== 'retag'}
-            aria-hidden={operation !== 'retag'}
-            data-operation-section="retag"
-          >
-            <RetagSection
-              file={retagFile}
-              dragOver={dragOverRetag}
-              loadingMetadata={loadingRetagMetadata}
-              metadata={retagMetadata}
-              coverPreviewUrl={retagCoverPreviewUrl}
-              onDrop={handleRetagDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverRetag(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverRetag(false);
-              }}
-              onFileChange={handleRetagFileSelect}
-              onMetadataChange={updateRetagMetadata}
-              onCoverChange={handleRetagCoverChange}
-              donorFile={retagDonorFile}
-              donorMetadata={retagDonorMetadata}
-              donorCoverPreviewUrl={retagDonorCoverPreviewUrl}
-              loadingDonorMetadata={loadingDonorMetadata}
-              dragOverDonor={dragOverDonor}
-              onDonorDrop={handleDonorDrop}
-              onDonorDragOver={(e) => {
-                e.preventDefault();
-                setDragOverDonor(true);
-              }}
-              onDonorDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverDonor(false);
-              }}
-              onDonorFileChange={handleDonorFileSelect}
-              onImportFields={handleImportDonorFields}
-            />
-          </div>
-
-          <div
-            hidden={operation !== 'trim'}
-            aria-hidden={operation !== 'trim'}
-            data-operation-section="trim"
-          >
-            <TrimSection
-              file={trimFile}
-              dragOver={dragOverTrim}
-              options={trimOptions}
-              isLosslessFormat={isTrimLosslessFormat}
-              onDrop={handleTrimDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverTrim(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverTrim(false);
-              }}
-              onFileChange={handleTrimFileSelect}
-              onOptionsChange={setTrimOptions}
-            />
-          </div>
-
-          <div
-            hidden={operation !== 'visualize'}
-            aria-hidden={operation !== 'visualize'}
-            data-operation-section="visualize"
-          >
-            <VisualizerSection
-              ref={visualizerRef}
-              file={visualizerFile}
-              dragOver={dragOverVisualizer}
-              onDrop={handleVisualizerDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverVisualizer(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverVisualizer(false);
-              }}
-              onFileChange={handleVisualizerFileSelect}
-            />
-          </div>
-
-          <div
-            hidden={operation !== 'noise'}
-            aria-hidden={operation !== 'noise'}
-            data-operation-section="noise"
-          >
-            <NoiseOptions options={options} onChange={updateOption} />
-          </div>
-
-          <div
-            hidden={operation !== 'cover'}
-            aria-hidden={operation !== 'cover'}
-            data-operation-section="cover"
-          >
-            <section className="section">
-              <h2 className="section-title">
-                <span className="step-number">3</span>
-                Cover extraction
-              </h2>
-              <p className="hint">
-                We will extract the embedded cover as a JPEG if present.
-              </p>
-            </section>
-          </div>
-
-          <div
-            hidden={operation !== 'retag-wav' && operation !== 'retag'}
-            aria-hidden={operation !== 'retag-wav' && operation !== 'retag'}
-            data-operation-section="output-filename"
-          >
-            <OutputFilenameSection
-              outputFilename={outputFilename}
-              onFilenameChange={setOutputFilename}
-              useAutoFilename={useAutoFilename}
-              onAutoFilenameChange={setUseAutoFilename}
-              placeholder={
-                operation === 'retag-wav' ? 'output.mp3' : 'output_retagged.mp3'
-              }
-            />
-          </div>
-
-          <ActionsSection
-            processing={processing}
+        <div
+          hidden={operation !== 'retag-wav'}
+          aria-hidden={operation !== 'retag-wav'}
+          data-operation-section="retag-wav"
+        >
+          <RetagWavSection
+            wavFile={wavFile}
+            mp3SourceFile={mp3SourceFile}
+            dragOverWav={dragOverWav}
+            dragOverMp3={dragOverMp3}
             loadingMetadata={loadingMetadata}
-            loadingRetagMetadata={loadingRetagMetadata}
-            progress={progress}
-            status={status}
-            error={error}
-            downloadUrl={downloadUrl}
-            downloadName={downloadName}
-            previewUrl={previewUrl}
-            batchPreviews={batchPreviews}
-            operation={operation}
-            genericConvertOptions={genericConvertOptions}
-            onSubmit={submit}
-            onReset={handleReset}
+            metadata={metadata}
+            coverPreviewUrl={convertCoverPreviewUrl}
+            onWavDrop={handleWavDrop}
+            onMp3Drop={handleMp3Drop}
+            onWavDragOver={(e) => {
+              e.preventDefault();
+              setDragOverWav(true);
+            }}
+            onWavDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverWav(false);
+            }}
+            onMp3DragOver={(e) => {
+              e.preventDefault();
+              setDragOverMp3(true);
+            }}
+            onMp3DragLeave={(e) => {
+              e.preventDefault();
+              setDragOverMp3(false);
+            }}
+            onWavChange={handleWavFileSelect}
+            onMp3Change={handleMp3SourceSelect}
+            onMetadataChange={updateMetadata}
+            onCoverChange={handleConvertCoverChange}
           />
+        </div>
 
-          <Footer
-            analyticsEnabled={consent === true}
-            onToggleAnalytics={() => setConsent(consent !== true)}
+        <div
+          hidden={operation !== 'convert'}
+          aria-hidden={operation !== 'convert'}
+          data-operation-section="convert"
+        >
+          <ConvertSection
+            files={genericConvertFiles}
+            dragOver={dragOverGeneric}
+            options={genericConvertOptions}
+            isLosslessFormat={isLosslessFormat}
+            sampleRateOptions={
+              SAMPLE_RATES_BY_FORMAT[genericConvertOptions.format]
+            }
+            onDrop={handleGenericConvertDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOverGeneric(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverGeneric(false);
+            }}
+            onFilesChange={handleGenericConvertFilesSelect}
+            onOptionChange={updateGenericConvertOption}
           />
-        </main>
-      </div>
-    </div>
+        </div>
+
+        <div
+          hidden={operation !== 'retag'}
+          aria-hidden={operation !== 'retag'}
+          data-operation-section="retag"
+        >
+          <RetagSection
+            file={retagFile}
+            dragOver={dragOverRetag}
+            loadingMetadata={loadingRetagMetadata}
+            metadata={retagMetadata}
+            coverPreviewUrl={retagCoverPreviewUrl}
+            onDrop={handleRetagDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOverRetag(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverRetag(false);
+            }}
+            onFileChange={handleRetagFileSelect}
+            onMetadataChange={updateRetagMetadata}
+            onCoverChange={handleRetagCoverChange}
+            donorFile={retagDonorFile}
+            donorMetadata={retagDonorMetadata}
+            donorCoverPreviewUrl={retagDonorCoverPreviewUrl}
+            loadingDonorMetadata={loadingDonorMetadata}
+            dragOverDonor={dragOverDonor}
+            onDonorDrop={handleDonorDrop}
+            onDonorDragOver={(e) => {
+              e.preventDefault();
+              setDragOverDonor(true);
+            }}
+            onDonorDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverDonor(false);
+            }}
+            onDonorFileChange={handleDonorFileSelect}
+            onImportFields={handleImportDonorFields}
+          />
+        </div>
+
+        <div
+          hidden={operation !== 'trim'}
+          aria-hidden={operation !== 'trim'}
+          data-operation-section="trim"
+        >
+          <TrimSection
+            file={trimFile}
+            dragOver={dragOverTrim}
+            options={trimOptions}
+            isLosslessFormat={isTrimLosslessFormat}
+            onDrop={handleTrimDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOverTrim(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverTrim(false);
+            }}
+            onFileChange={handleTrimFileSelect}
+            onOptionsChange={setTrimOptions}
+          />
+        </div>
+
+        <div
+          hidden={operation !== 'visualize'}
+          aria-hidden={operation !== 'visualize'}
+          data-operation-section="visualize"
+        >
+          <VisualizerSection
+            ref={visualizerRef}
+            file={visualizerFile}
+            dragOver={dragOverVisualizer}
+            onDrop={handleVisualizerDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOverVisualizer(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverVisualizer(false);
+            }}
+            onFileChange={handleVisualizerFileSelect}
+          />
+        </div>
+
+        <div
+          hidden={operation !== 'noise'}
+          aria-hidden={operation !== 'noise'}
+          data-operation-section="noise"
+        >
+          <NoiseOptions options={options} onChange={updateOption} />
+        </div>
+
+        <div
+          hidden={operation !== 'cover'}
+          aria-hidden={operation !== 'cover'}
+          data-operation-section="cover"
+        >
+          <section className="section">
+            <h2 className="section-title">
+              <span className="step-number">3</span>
+              Cover extraction
+            </h2>
+            <p className="hint">
+              We will extract the embedded cover as a JPEG if present.
+            </p>
+          </section>
+        </div>
+
+        <div
+          hidden={operation !== 'retag-wav' && operation !== 'retag'}
+          aria-hidden={operation !== 'retag-wav' && operation !== 'retag'}
+          data-operation-section="output-filename"
+        >
+          <OutputFilenameSection
+            outputFilename={outputFilename}
+            onFilenameChange={setOutputFilename}
+            useAutoFilename={useAutoFilename}
+            onAutoFilenameChange={setUseAutoFilename}
+            placeholder={
+              operation === 'retag-wav' ? 'output.mp3' : 'output_retagged.mp3'
+            }
+          />
+        </div>
+
+        <ActionsSection
+          processing={processing}
+          loadingMetadata={loadingMetadata}
+          loadingRetagMetadata={loadingRetagMetadata}
+          progress={progress}
+          status={status}
+          error={error}
+          downloadUrl={downloadUrl}
+          downloadName={downloadName}
+          previewUrl={previewUrl}
+          batchPreviews={batchPreviews}
+          operation={operation}
+          genericConvertOptions={genericConvertOptions}
+          onSubmit={submit}
+          onReset={handleReset}
+        />
+
+        <Footer
+          analyticsEnabled={consent === true}
+          onToggleAnalytics={() => setConsent(consent !== true)}
+        />
+      </main>
+    </>
   );
 }
