@@ -1136,7 +1136,7 @@ export default function App() {
 
   return (
     <>
-      {consent === true && (
+      {hydrated && consent === true && (
         <>
           <SpeedInsights />
           <Analytics />
