@@ -1,9 +1,19 @@
+import type { AdblockDetectionResult } from '../utils/detectAdblock';
+
 type Props = {
   onAccept: () => void;
   onDecline: () => void;
+  adblockStatus: AdblockDetectionResult;
 };
 
-export function AnalyticsConsentModal({ onAccept, onDecline }: Props) {
+export function AnalyticsConsentModal({
+  onAccept,
+  onDecline,
+  adblockStatus,
+}: Props) {
+  const isLikelyBlocked =
+    adblockStatus === 'blocked' || adblockStatus === 'unknown';
+
   return (
     <div className="consent-modal-backdrop">
       <div className="consent-modal">
@@ -59,6 +69,19 @@ export function AnalyticsConsentModal({ onAccept, onDecline }: Props) {
           </a>
           .
         </p>
+        {isLikelyBlocked && (
+          <div className="consent-modal-warning">
+            <p className="consent-modal-warning-title">
+              Heads-up for AdBlock/uBlock Origin users
+            </p>
+            <p className="consent-modal-warning-text">
+              Adblockers (including uBlock Origin) block these analytics calls by
+              default. If you choose to allow analytics, you’ll also need to
+              disable your adblocker (or add an allowlist rule) for this site so
+              events can be sent.
+            </p>
+          </div>
+        )}
         <div className="consent-modal-actions">
           <button
             type="button"

@@ -1,7 +1,4 @@
-import { track } from '@vercel/analytics';
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/react';
-import type { ChangeEvent, DragEvent } from 'react';
+import type { ChangeEvent, ComponentType, DragEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   BatchProgressCallback,
@@ -28,6 +25,11 @@ import { AnalyticsConsentModal } from './components/AnalyticsConsentModal';
 import { useAnalyticsConsent } from './hooks/useAnalyticsConsent';
 import { useOutputFilename } from './hooks/useOutputFilename';
 import './styles.css';
+import {
+  detectAdblock,
+  type AdblockDetectionResult,
+} from './utils/detectAdblock';
+type TrackFn = (event: string, properties?: Record<string, unknown>) => void;
 import { ActionsSection } from './components/ActionsSection';
 import { AudioFilePicker } from './components/AudioFilePicker';
 import { ConvertSection } from './components/ConvertSection';
@@ -205,6 +207,17 @@ export default function App() {
   // Progress state
   const [progress, setProgress] = useState<number | null>(null);
 
+  // Adblock detection state
+  const [adblockStatus, setAdblockStatus] =
+    useState<AdblockDetectionResult>('unknown');
+
+  // Lazy-loaded analytics pieces to avoid adblock-induced module failures.
+  const [AnalyticsComponent, setAnalyticsComponent] =
+    useState<ComponentType | null>(null);
+  const [SpeedInsightsComponent, setSpeedInsightsComponent] =
+    useState<ComponentType | null>(null);
+  const trackRef = useRef<TrackFn | null>(null);
+
   // Trim operation state
   const [trimFile, setTrimFile] = useState<File | null>(null);
   const [trimOptions, setTrimOptions] =
@@ -240,6 +253,8 @@ export default function App() {
 
   const trackPageview = useCallback(() => {
     if (!isBrowser || consent !== true) return;
+    const track = trackRef.current;
+    if (!track) return;
     track('pageview', {
       page: `${window.location.pathname}${window.location.hash}`,
     });
@@ -257,6 +272,83 @@ export default function App() {
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  // Heuristically detect adblock / similar blockers.
+  useEffect(() => {
+    if (!isBrowser) return;
+    let cancelled = false;
+
+    // Debug: start detection
+    console.info('[analytics] Starting uBlock detection...');
+
+    detectAdblock()
+      .then((status) => {
+        if (!cancelled) setAdblockStatus(status);
+        if (!cancelled) {
+          // Expose for quick inspection in devtools.
+          (window as typeof window & { __ADBLOCK_STATUS__?: AdblockDetectionResult }).__ADBLOCK_STATUS__ =
+            status;
+          console.info('[analytics] Adblock detection result:', status);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAdblockStatus('blocked');
+        if (!cancelled) {
+          (window as typeof window & { __ADBLOCK_STATUS__?: AdblockDetectionResult }).__ADBLOCK_STATUS__ =
+            'blocked';
+          console.warn('[analytics] Adblock detection failed, treating as blocked');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isBrowser]);
+
+  // Reset analytics artifacts when consent is revoked/absent.
+  useEffect(() => {
+    if (consent !== true) {
+      setAnalyticsComponent(null);
+      setSpeedInsightsComponent(null);
+      trackRef.current = null;
+    }
+  }, [consent]);
+
+  // Load analytics bundles only after consent to avoid adblock-induced failures.
+  useEffect(() => {
+    if (!isBrowser || consent !== true) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [analyticsReact, speedReact, analyticsCore] = await Promise.all([
+          import('@vercel/analytics/react'),
+          import('@vercel/speed-insights/react'),
+          import('@vercel/analytics'),
+        ]);
+        if (cancelled) return;
+        setAnalyticsComponent(() => analyticsReact.Analytics);
+        setSpeedInsightsComponent(() => speedReact.SpeedInsights);
+        trackRef.current = analyticsCore.track;
+        trackRef.current?.('pageview', {
+          page: `${window.location.pathname}${window.location.hash}`,
+        });
+        // eslint-disable-next-line no-console
+        console.info('[analytics] Analytics bundles loaded');
+      } catch (err) {
+        if (cancelled) return;
+        setAnalyticsComponent(null);
+        setSpeedInsightsComponent(null);
+        trackRef.current = null;
+        // eslint-disable-next-line no-console
+        console.warn('[analytics] Failed to load analytics bundles', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [consent, isBrowser]);
 
   // Set initial hash on mount if not already valid
   useEffect(() => {
@@ -1136,14 +1228,18 @@ export default function App() {
 
   return (
     <>
-      {hydrated && consent === true && (
+      {hydrated &&
+        consent === true &&
+        AnalyticsComponent &&
+        SpeedInsightsComponent && (
         <>
-          <SpeedInsights />
-          <Analytics />
+          <SpeedInsightsComponent />
+          <AnalyticsComponent />
         </>
       )}
       {hydrated && consent === null && (
         <AnalyticsConsentModal
+          adblockStatus={adblockStatus}
           onAccept={() => setConsent(true)}
           onDecline={() => setConsent(false)}
         />
