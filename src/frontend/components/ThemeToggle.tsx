@@ -1,4 +1,4 @@
-import type { Theme } from "../types";
+import type { Theme } from '../types';
 
 type ThemeToggleProps = {
   theme: Theme;
@@ -7,9 +7,9 @@ type ThemeToggleProps = {
 
 export function ThemeToggle({ theme, setTheme }: ThemeToggleProps) {
   const options: { value: Theme; icon: string; label: string }[] = [
-    { value: "system", icon: "🖥️", label: "Auto" },
-    { value: "light", icon: "☀️", label: "Light" },
-    { value: "dark", icon: "🌙", label: "Dark" },
+    { value: 'system', icon: '🖥️', label: 'Auto' },
+    { value: 'light', icon: '☀️', label: 'Light' },
+    { value: 'dark', icon: '🌙', label: 'Dark' },
   ];
 
   const activeIndex = options.findIndex((opt) => opt.value === theme);
@@ -19,14 +19,16 @@ export function ThemeToggle({ theme, setTheme }: ThemeToggleProps) {
       <div className="theme-switch-track">
         <span
           className="theme-switch-indicator"
-          style={{ transform: `translateX(${Math.max(activeIndex, 0) * 100}%)` }}
+          style={{
+            transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`,
+          }}
           aria-hidden="true"
         />
         {options.map((opt) => (
           <button
             key={opt.value}
             type="button"
-            className={`theme-switch-btn ${theme === opt.value ? "active" : ""}`}
+            className={`theme-switch-btn ${theme === opt.value ? 'active' : ''}`}
             onClick={() => setTheme(opt.value)}
             title={`${opt.label} theme`}
           >

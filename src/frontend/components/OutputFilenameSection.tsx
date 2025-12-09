@@ -1,4 +1,4 @@
-import { Checkbox } from "./Checkbox";
+import { Checkbox } from './Checkbox';
 
 type OutputFilenameSectionProps = {
   outputFilename: string;
@@ -16,7 +16,7 @@ export function OutputFilenameSection({
   placeholder,
 }: OutputFilenameSectionProps) {
   // Strip .mp3 from placeholder since we show it as a suffix
-  const basePlaceholder = placeholder.replace(/\.mp3$/i, "");
+  const basePlaceholder = placeholder.replace(/\.mp3$/i, '');
 
   return (
     <section className="section">

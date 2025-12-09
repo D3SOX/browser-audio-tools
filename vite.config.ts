@@ -1,24 +1,24 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: "dist",
+    outDir: 'dist',
     sourcemap: true,
   },
   resolve: {
     alias: {
-      "@": "/src",
+      '@': '/src',
     },
   },
   server: {
     headers: {
-      "Cross-Origin-Opener-Policy": "same-origin",
-      "Cross-Origin-Embedder-Policy": "require-corp",
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
     },
   },
   optimizeDeps: {
-    exclude: ["@ffmpeg/ffmpeg", "@ffmpeg/util"],
+    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
   },
 });

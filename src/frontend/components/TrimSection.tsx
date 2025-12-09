@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChangeEvent, DragEvent } from "react";
-import type { OutputFormat, TrimOutputFormat } from "../api";
-import { formatSupportsCoverArt } from "../api";
-import { formatSize } from "../utils/formatSize";
-import WaveSurfer from "wavesurfer.js";
-import RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
-import { Checkbox } from "./Checkbox";
+import type { ChangeEvent, DragEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import WaveSurfer from 'wavesurfer.js';
+import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
+import type { OutputFormat, TrimOutputFormat } from '../api';
+import { formatSupportsCoverArt } from '../api';
+import { formatSize } from '../utils/formatSize';
+import { Checkbox } from './Checkbox';
 
 export interface TrimOptions {
   startTime: number;
@@ -33,11 +33,11 @@ function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 100);
-  return `${mins}:${secs.toString().padStart(2, "0")}.${ms.toString().padStart(2, "0")}`;
+  return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
 }
 
 function createRegionContent(): HTMLElement {
-  const div = document.createElement("div");
+  const div = document.createElement('div');
   div.style.cssText = `
     position: absolute;
     top: 0;
@@ -56,7 +56,7 @@ function parseTime(str: string): number | null {
   if (colonMatch) {
     const mins = parseInt(colonMatch[1]!, 10);
     const secs = parseInt(colonMatch[2]!, 10);
-    const ms = colonMatch[3] ? parseInt(colonMatch[3].padEnd(2, "0"), 10) : 0;
+    const ms = colonMatch[3] ? parseInt(colonMatch[3].padEnd(2, '0'), 10) : 0;
     return mins * 60 + secs + ms / 100;
   }
   const numMatch = str.match(/^(\d+(?:\.\d*)?)$/);
@@ -84,8 +84,8 @@ export function TrimSection({
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [startTimeInput, setStartTimeInput] = useState("0:00.00");
-  const [endTimeInput, setEndTimeInput] = useState("0:00.00");
+  const [startTimeInput, setStartTimeInput] = useState('0:00.00');
+  const [endTimeInput, setEndTimeInput] = useState('0:00.00');
 
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onFileChange(e.target.files?.[0] ?? null);
@@ -95,7 +95,7 @@ export function TrimSection({
     <K extends keyof TrimOptions>(key: K, value: TrimOptions[K]) => {
       onOptionsChange({ ...options, [key]: value });
     },
-    [options, onOptionsChange]
+    [options, onOptionsChange],
   );
 
   // Initialize WaveSurfer when file changes
@@ -119,9 +119,9 @@ export function TrimSection({
     // Create WaveSurfer instance with visible colors
     const ws = WaveSurfer.create({
       container: waveformRef.current,
-      waveColor: "#818cf8",
-      progressColor: "#4f46e5",
-      cursorColor: "#FFD600",
+      waveColor: '#818cf8',
+      progressColor: '#4f46e5',
+      cursorColor: '#FFD600',
       cursorWidth: 2,
       height: 128,
       normalize: true,
@@ -137,7 +137,7 @@ export function TrimSection({
     const url = URL.createObjectURL(file);
     ws.load(url);
 
-    ws.on("ready", () => {
+    ws.on('ready', () => {
       setIsLoading(false);
       const dur = ws.getDuration();
       setDuration(dur);
@@ -146,7 +146,7 @@ export function TrimSection({
       const region = regions.addRegion({
         start: 0,
         end: dur,
-        color: "rgba(244, 63, 94, 0.25)",
+        color: 'rgba(244, 63, 94, 0.25)',
         drag: true,
         resize: true,
         content: createRegionContent(),
@@ -162,7 +162,7 @@ export function TrimSection({
       setEndTimeInput(formatTime(dur));
 
       // Listen to region updates
-      region.on("update-end", () => {
+      region.on('update-end', () => {
         onOptionsChange({
           ...options,
           startTime: region.start,
@@ -173,13 +173,13 @@ export function TrimSection({
       });
     });
 
-    ws.on("timeupdate", (time) => {
+    ws.on('timeupdate', (time) => {
       setCurrentTime(time);
     });
 
-    ws.on("play", () => setIsPlaying(true));
-    ws.on("pause", () => setIsPlaying(false));
-    ws.on("finish", () => setIsPlaying(false));
+    ws.on('play', () => setIsPlaying(true));
+    ws.on('pause', () => setIsPlaying(false));
+    ws.on('finish', () => setIsPlaying(false));
 
     return () => {
       URL.revokeObjectURL(url);
@@ -191,23 +191,20 @@ export function TrimSection({
   }, [file]);
 
   // Update region when time inputs change programmatically
-  const updateRegion = useCallback(
-    (start: number, end: number) => {
-      if (!regionsRef.current) return;
-      const regions = regionsRef.current.getRegions();
-      if (regions.length > 0) {
-        regions[0]!.setOptions({ start, end });
-      }
-    },
-    []
-  );
+  const updateRegion = useCallback((start: number, end: number) => {
+    if (!regionsRef.current) return;
+    const regions = regionsRef.current.getRegions();
+    if (regions.length > 0) {
+      regions[0]!.setOptions({ start, end });
+    }
+  }, []);
 
   const handleStartTimeChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setStartTimeInput(value);
     const parsed = parseTime(value);
     if (parsed !== null && parsed >= 0 && parsed < options.endTime) {
-      updateOption("startTime", parsed);
+      updateOption('startTime', parsed);
       updateRegion(parsed, options.endTime);
     }
   };
@@ -217,7 +214,7 @@ export function TrimSection({
     setEndTimeInput(value);
     const parsed = parseTime(value);
     if (parsed !== null && parsed > options.startTime && parsed <= duration) {
-      updateOption("endTime", parsed);
+      updateOption('endTime', parsed);
       updateRegion(options.startTime, parsed);
     }
   };
@@ -241,17 +238,20 @@ export function TrimSection({
     wavesurferRef.current.play();
     // Stop at end of selection
     const checkEnd = () => {
-      if (wavesurferRef.current && wavesurferRef.current.getCurrentTime() >= options.endTime) {
+      if (
+        wavesurferRef.current &&
+        wavesurferRef.current.getCurrentTime() >= options.endTime
+      ) {
         wavesurferRef.current.pause();
-        wavesurferRef.current.un("timeupdate", checkEnd);
+        wavesurferRef.current.un('timeupdate', checkEnd);
       }
     };
-    wavesurferRef.current.on("timeupdate", checkEnd);
+    wavesurferRef.current.on('timeupdate', checkEnd);
   };
 
   const selectAll = () => {
-    updateOption("startTime", 0);
-    updateOption("endTime", duration);
+    updateOption('startTime', 0);
+    updateOption('endTime', duration);
     setStartTimeInput(formatTime(0));
     setEndTimeInput(formatTime(duration));
     updateRegion(0, duration);
@@ -267,7 +267,7 @@ export function TrimSection({
           Choose audio file
         </h2>
         <div
-          className={`file-dropzone ${dragOver ? "drag-over" : ""} ${file ? "has-file" : ""}`}
+          className={`file-dropzone ${dragOver ? 'drag-over' : ''} ${file ? 'has-file' : ''}`}
           onDrop={onDrop}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
@@ -282,12 +282,22 @@ export function TrimSection({
           <label htmlFor="trim-file-input" className="file-dropzone-label">
             <div className="file-icon">
               {file ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M9 12l2 2 4-4" />
                   <circle cx="12" cy="12" r="10" />
                 </svg>
               ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="17,8 12,3 7,8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
@@ -302,7 +312,9 @@ export function TrimSection({
                 </>
               ) : (
                 <>
-                  <span className="file-cta">Click to browse or drag & drop</span>
+                  <span className="file-cta">
+                    Click to browse or drag & drop
+                  </span>
                   <span className="file-hint">
                     Supports WAV, FLAC, AIFF, MP3, OGG, AAC (m4a), and more.
                   </span>
@@ -355,27 +367,52 @@ export function TrimSection({
               </div>
               <div className="trim-duration-display">
                 <span className="trim-duration-label">Selection:</span>
-                <span className="trim-duration-value">{formatTime(selectionDuration)}</span>
+                <span className="trim-duration-value">
+                  {formatTime(selectionDuration)}
+                </span>
               </div>
             </div>
 
             <div className="trim-playback-controls">
-              <button type="button" className="btn btn-icon" onClick={togglePlayPause} title={isPlaying ? "Pause" : "Play"}>
+              <button
+                type="button"
+                className="btn btn-icon"
+                onClick={togglePlayPause}
+                title={isPlaying ? 'Pause' : 'Play'}
+              >
                 {isPlaying ? (
-                  <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="20"
+                    height="20"
+                  >
                     <rect x="6" y="4" width="4" height="16" />
                     <rect x="14" y="4" width="4" height="16" />
                   </svg>
                 ) : (
-                  <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="20"
+                    height="20"
+                  >
                     <polygon points="5,3 19,12 5,21" />
                   </svg>
                 )}
               </button>
-              <button type="button" className="btn btn-secondary btn-small" onClick={playSelection}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-small"
+                onClick={playSelection}
+              >
                 Preview selection
               </button>
-              <button type="button" className="btn btn-secondary btn-small" onClick={selectAll}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-small"
+                onClick={selectAll}
+              >
                 Select all
               </button>
             </div>
@@ -402,7 +439,9 @@ export function TrimSection({
               <select
                 id="trimOutputFormat"
                 value={options.format}
-                onChange={(e) => updateOption("format", e.target.value as TrimOutputFormat)}
+                onChange={(e) =>
+                  updateOption('format', e.target.value as TrimOutputFormat)
+                }
               >
                 <optgroup label="Original">
                   <option value="source">Keep original (no re-encode)</option>
@@ -421,58 +460,61 @@ export function TrimSection({
             </div>
 
             {(() => {
-              const isPassthrough = options.format === "source";
+              const isPassthrough = options.format === 'source';
               const disableBitrate = isLosslessFormat || isPassthrough;
               return (
-                <div className={`input-group ${disableBitrate ? "input-group-disabled" : ""}`}>
-              <label htmlFor="trimBitrate" className="label-with-tooltip">
-                <span>Bitrate</span>
-                {disableBitrate && (
-                  <span
-                    className="tooltip-icon tooltip-icon-active"
-                    data-tooltip={
-                      isPassthrough
-                        ? "Bitrate is preserved when keeping the original format."
-                        : "Bitrate is not applicable for lossless formats."
-                    }
-                    aria-label={
-                      isPassthrough
-                        ? "Bitrate is preserved when keeping the original format."
-                        : "Bitrate is not applicable for lossless formats."
-                    }
-                    role="tooltip"
+                <div
+                  className={`input-group ${disableBitrate ? 'input-group-disabled' : ''}`}
+                >
+                  <label htmlFor="trimBitrate" className="label-with-tooltip">
+                    <span>Bitrate</span>
+                    {disableBitrate && (
+                      <span
+                        className="tooltip-icon tooltip-icon-active"
+                        data-tooltip={
+                          isPassthrough
+                            ? 'Bitrate is preserved when keeping the original format.'
+                            : 'Bitrate is not applicable for lossless formats.'
+                        }
+                        aria-label={
+                          isPassthrough
+                            ? 'Bitrate is preserved when keeping the original format.'
+                            : 'Bitrate is not applicable for lossless formats.'
+                        }
+                        role="tooltip"
+                      >
+                        i
+                      </span>
+                    )}
+                  </label>
+                  <select
+                    id="trimBitrate"
+                    value={options.bitrate}
+                    onChange={(e) => updateOption('bitrate', e.target.value)}
+                    disabled={disableBitrate}
                   >
-                    i
-                  </span>
-                )}
-              </label>
-              <select
-                id="trimBitrate"
-                value={options.bitrate}
-                onChange={(e) => updateOption("bitrate", e.target.value)}
-                disabled={disableBitrate}
-              >
-                <option value="96k">96 kbps</option>
-                <option value="128k">128 kbps</option>
-                <option value="192k">192 kbps</option>
-                <option value="256k">256 kbps</option>
-                <option value="320k">320 kbps</option>
-              </select>
+                    <option value="96k">96 kbps</option>
+                    <option value="128k">128 kbps</option>
+                    <option value="192k">192 kbps</option>
+                    <option value="256k">256 kbps</option>
+                    <option value="320k">320 kbps</option>
+                  </select>
                 </div>
               );
             })()}
           </div>
 
-          {options.format !== "source" && !formatSupportsCoverArt(options.format as OutputFormat) && (
-            <p className="format-warning">
-              ⚠️ WAV does not support cover art.
-            </p>
-          )}
+          {options.format !== 'source' &&
+            !formatSupportsCoverArt(options.format as OutputFormat) && (
+              <p className="format-warning">
+                ⚠️ WAV does not support cover art.
+              </p>
+            )}
 
           <div className="silence-removal-section">
             <Checkbox
               checked={options.removeSilence}
-              onChange={(e) => updateOption("removeSilence", e.target.checked)}
+              onChange={(e) => updateOption('removeSilence', e.target.checked)}
             >
               <span>Remove silence from selection</span>
             </Checkbox>
@@ -484,7 +526,9 @@ export function TrimSection({
                   <select
                     id="silenceThreshold"
                     value={options.silenceThreshold}
-                    onChange={(e) => updateOption("silenceThreshold", Number(e.target.value))}
+                    onChange={(e) =>
+                      updateOption('silenceThreshold', Number(e.target.value))
+                    }
                   >
                     <option value={-60}>-60 dB (very quiet)</option>
                     <option value={-50}>-50 dB (quiet)</option>
@@ -497,7 +541,9 @@ export function TrimSection({
                   <select
                     id="silenceDuration"
                     value={options.silenceDuration}
-                    onChange={(e) => updateOption("silenceDuration", Number(e.target.value))}
+                    onChange={(e) =>
+                      updateOption('silenceDuration', Number(e.target.value))
+                    }
                   >
                     <option value={0.1}>0.1s</option>
                     <option value={0.25}>0.25s</option>
@@ -510,8 +556,8 @@ export function TrimSection({
             )}
             <p className="hint">
               {options.removeSilence
-                ? "Silent segments below the threshold will be removed from the output."
-                : "Enable to automatically strip silent passages from your selection."}
+                ? 'Silent segments below the threshold will be removed from the output.'
+                : 'Enable to automatically strip silent passages from your selection.'}
             </p>
           </div>
         </section>

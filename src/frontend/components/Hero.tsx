@@ -1,5 +1,5 @@
-import type { Theme } from "../types";
-import { ThemeToggle } from "./ThemeToggle";
+import type { Theme } from '../types';
+import { ThemeToggle } from './ThemeToggle';
 
 type HeroProps = {
   theme: Theme;
@@ -11,9 +11,16 @@ export function Hero({ theme, setTheme }: HeroProps) {
     <header className="hero">
       <div className="hero-content">
         <h1 className="hero-title">Browser Audio Tools</h1>
-        <p className="hero-subtitle">Various tools for client-side audio processing</p>
+        <p className="hero-subtitle">
+          Various tools for client-side audio processing
+        </p>
         <div className="hero-actions">
-          <a className="github-link" href="https://github.com/D3SOX/browser-audio-tools" target="_blank" rel="noreferrer">
+          <a
+            className="github-link"
+            href="https://github.com/D3SOX/browser-audio-tools"
+            target="_blank"
+            rel="noreferrer"
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path
                 fill="currentColor"

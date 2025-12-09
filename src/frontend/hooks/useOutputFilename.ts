@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import type { ID3Metadata } from "../api";
-import type { Operation } from "../types";
+import { useCallback, useEffect, useState } from 'react';
+import type { ID3Metadata } from '../api';
+import type { Operation } from '../types';
 
 type UseOutputFilenameOptions = {
   operation: Operation;
@@ -19,7 +19,7 @@ export function useOutputFilename({
   retagFile,
   wavFile,
 }: UseOutputFilenameOptions) {
-  const [outputFilename, setOutputFilenameState] = useState<string>("");
+  const [outputFilename, setOutputFilenameState] = useState<string>('');
   const [useAutoFilename, setUseAutoFilename] = useState(false);
 
   // Helper to generate "Artist - Title" base filename (without extension)
@@ -28,34 +28,34 @@ export function useOutputFilename({
     const title = meta.title.trim();
     if (artist && title) {
       // Sanitize filename (remove characters not allowed in filenames)
-      const sanitize = (s: string) => s.replace(/[<>:"/\\|?*]/g, "_");
+      const sanitize = (s: string) => s.replace(/[<>:"/\\|?*]/g, '_');
       return `${sanitize(artist)} - ${sanitize(title)}`;
     }
-    return "";
+    return '';
   }, []);
 
   // Helper to get default base filename (without extension) for the current operation
   const getDefaultFilename = useCallback(() => {
-    if (operation === "retag-wav") {
+    if (operation === 'retag-wav') {
       if (mp3SourceFile) {
-        return mp3SourceFile.name.replace(/\.mp3$/i, "");
+        return mp3SourceFile.name.replace(/\.mp3$/i, '');
       }
       if (wavFile) {
-        return wavFile.name.replace(/\.wav$/i, "");
+        return wavFile.name.replace(/\.wav$/i, '');
       }
     }
-    if (operation === "retag" && retagFile) {
-      return retagFile.name.replace(/\.mp3$/i, "") + "_retagged";
+    if (operation === 'retag' && retagFile) {
+      return retagFile.name.replace(/\.mp3$/i, '') + '_retagged';
     }
-    return "";
+    return '';
   }, [operation, mp3SourceFile, retagFile, wavFile]);
 
   // Update output filename when useAutoFilename changes or when metadata changes (if auto is on)
   useEffect(() => {
-    if (operation !== "retag-wav" && operation !== "retag") return;
+    if (operation !== 'retag-wav' && operation !== 'retag') return;
 
     if (useAutoFilename) {
-      const meta = operation === "retag-wav" ? metadata : retagMetadata;
+      const meta = operation === 'retag-wav' ? metadata : retagMetadata;
       const autoName = getAutoFilename(meta);
       if (autoName) {
         setOutputFilenameState(autoName);
@@ -64,20 +64,34 @@ export function useOutputFilename({
         setOutputFilenameState(getDefaultFilename());
       }
     }
-  }, [operation, useAutoFilename, metadata, retagMetadata, getAutoFilename, getDefaultFilename]);
+  }, [
+    operation,
+    useAutoFilename,
+    metadata,
+    retagMetadata,
+    getAutoFilename,
+    getDefaultFilename,
+  ]);
 
   // Set default filename when file is selected (only if not using auto-format)
   useEffect(() => {
-    if (operation !== "retag-wav" && operation !== "retag") return;
+    if (operation !== 'retag-wav' && operation !== 'retag') return;
     if (useAutoFilename) return; // Let the auto-format effect handle it
 
     setOutputFilenameState(getDefaultFilename());
-  }, [operation, mp3SourceFile, retagFile, wavFile, useAutoFilename, getDefaultFilename]);
+  }, [
+    operation,
+    mp3SourceFile,
+    retagFile,
+    wavFile,
+    useAutoFilename,
+    getDefaultFilename,
+  ]);
 
   // Setter that disables auto-format when manually editing
   // Also strips .mp3 extension if user types it (since it's shown as a fixed suffix)
   const setOutputFilename = useCallback((value: string) => {
-    const base = value.replace(/\.mp3$/i, "");
+    const base = value.replace(/\.mp3$/i, '');
     setOutputFilenameState(base);
     // Disable auto-format when user manually edits
     setUseAutoFilename(false);
@@ -85,7 +99,7 @@ export function useOutputFilename({
 
   // Reset to initial state
   const reset = useCallback(() => {
-    setOutputFilenameState("");
+    setOutputFilenameState('');
     setUseAutoFilename(false);
   }, []);
 

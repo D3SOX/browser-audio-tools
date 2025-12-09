@@ -1,7 +1,12 @@
-import type { ChangeEvent, DragEvent } from "react";
-import type { Channels, GenericConvertOptions, OutputFormat, SampleRate } from "../api";
-import { formatSupportsCoverArt } from "../api";
-import { formatSize } from "../utils/formatSize";
+import type { ChangeEvent, DragEvent } from 'react';
+import type {
+  Channels,
+  GenericConvertOptions,
+  OutputFormat,
+  SampleRate,
+} from '../api';
+import { formatSupportsCoverArt } from '../api';
+import { formatSize } from '../utils/formatSize';
 
 type ConvertSectionProps = {
   files: File[];
@@ -13,7 +18,10 @@ type ConvertSectionProps = {
   onDragOver: (e: DragEvent) => void;
   onDragLeave: (e: DragEvent) => void;
   onFilesChange: (files: File[]) => void;
-  onOptionChange: <K extends keyof GenericConvertOptions>(key: K, value: GenericConvertOptions[K]) => void;
+  onOptionChange: <K extends keyof GenericConvertOptions>(
+    key: K,
+    value: GenericConvertOptions[K],
+  ) => void;
 };
 
 export function ConvertSection({
@@ -43,7 +51,12 @@ export function ConvertSection({
           <span className="step-number">2</span>
           Choose audio files
         </h2>
-        <div className={`file-dropzone ${dragOver ? "drag-over" : ""} ${hasFiles ? "has-file" : ""}`} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}>
+        <div
+          className={`file-dropzone ${dragOver ? 'drag-over' : ''} ${hasFiles ? 'has-file' : ''}`}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+        >
           <input
             type="file"
             accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.m4a"
@@ -55,12 +68,22 @@ export function ConvertSection({
           <label htmlFor="convert-input" className="file-dropzone-label">
             <div className="file-icon">
               {hasFiles ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M9 12l2 2 4-4" />
                   <circle cx="12" cy="12" r="10" />
                 </svg>
               ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="17,8 12,3 7,8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
@@ -68,19 +91,26 @@ export function ConvertSection({
               )}
             </div>
             <div className="file-text">
-            {hasFiles ? (
-              <>
-                <span className="file-name">
-                  {files.length === 1 ? files[0]!.name : `${files.length} files selected`}
-                </span>
-                <span className="file-size">{formatSize(totalSize)}</span>
-              </>
-            ) : (
-              <>
-                <span className="file-cta">Click to browse or drag & drop</span>
-                <span className="file-hint">Supports WAV, FLAC, AIFF, MP3, OGG, AAC (m4a), and more. Select multiple files for batch processing.</span>
-              </>
-            )}
+              {hasFiles ? (
+                <>
+                  <span className="file-name">
+                    {files.length === 1
+                      ? files[0]!.name
+                      : `${files.length} files selected`}
+                  </span>
+                  <span className="file-size">{formatSize(totalSize)}</span>
+                </>
+              ) : (
+                <>
+                  <span className="file-cta">
+                    Click to browse or drag & drop
+                  </span>
+                  <span className="file-hint">
+                    Supports WAV, FLAC, AIFF, MP3, OGG, AAC (m4a), and more.
+                    Select multiple files for batch processing.
+                  </span>
+                </>
+              )}
             </div>
           </label>
         </div>
@@ -104,7 +134,13 @@ export function ConvertSection({
         <div className="options-grid">
           <div className="input-group">
             <label htmlFor="outputFormat">Output format</label>
-            <select id="outputFormat" value={options.format} onChange={(e) => onOptionChange("format", e.target.value as OutputFormat)}>
+            <select
+              id="outputFormat"
+              value={options.format}
+              onChange={(e) =>
+                onOptionChange('format', e.target.value as OutputFormat)
+              }
+            >
               <optgroup label="Lossy">
                 <option value="mp3">MP3</option>
                 <option value="ogg">OGG Vorbis</option>
@@ -117,11 +153,13 @@ export function ConvertSection({
               </optgroup>
             </select>
           </div>
-          <div className={`input-group ${isLosslessFormat ? "input-group-disabled" : ""}`}>
+          <div
+            className={`input-group ${isLosslessFormat ? 'input-group-disabled' : ''}`}
+          >
             <label htmlFor="convertBitrate" className="label-with-tooltip">
               <span>Bitrate</span>
               <span
-                className={`tooltip-icon ${isLosslessFormat ? "tooltip-icon-active" : ""}`}
+                className={`tooltip-icon ${isLosslessFormat ? 'tooltip-icon-active' : ''}`}
                 data-tooltip="Bitrate is not applicable for lossless formats."
                 aria-label="Bitrate is not applicable for lossless formats."
                 role="tooltip"
@@ -133,7 +171,7 @@ export function ConvertSection({
             <select
               id="convertBitrate"
               value={options.bitrate}
-              onChange={(e) => onOptionChange("bitrate", e.target.value)}
+              onChange={(e) => onOptionChange('bitrate', e.target.value)}
               disabled={isLosslessFormat}
             >
               <option value="96k">96 kbps</option>
@@ -148,7 +186,12 @@ export function ConvertSection({
             <select
               id="sampleRate"
               value={options.sampleRate}
-              onChange={(e) => onOptionChange("sampleRate", Number(e.target.value) as SampleRate)}
+              onChange={(e) =>
+                onOptionChange(
+                  'sampleRate',
+                  Number(e.target.value) as SampleRate,
+                )
+              }
             >
               {sampleRateOptions.map((rate) => (
                 <option key={rate} value={rate}>
@@ -164,8 +207,9 @@ export function ConvertSection({
               value={options.channels}
               onChange={(e) => {
                 const value = e.target.value;
-                const next: Channels = value === "auto" ? "auto" : (Number(value) as Channels);
-                onOptionChange("channels", next);
+                const next: Channels =
+                  value === 'auto' ? 'auto' : (Number(value) as Channels);
+                onOptionChange('channels', next);
               }}
             >
               <option value="auto">Auto (match source)</option>
@@ -175,9 +219,7 @@ export function ConvertSection({
           </div>
         </div>
         {!formatSupportsCoverArt(options.format) && (
-          <p className="format-warning">
-            ⚠️ WAV does not support cover art.
-          </p>
+          <p className="format-warning">⚠️ WAV does not support cover art.</p>
         )}
       </section>
     </>

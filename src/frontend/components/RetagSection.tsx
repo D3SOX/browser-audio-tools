@@ -1,10 +1,17 @@
-import { useState, type ChangeEvent, type DragEvent } from "react";
-import type { ID3Metadata } from "../api";
-import { formatSize } from "../utils/formatSize";
-import { CoverArtPicker } from "./CoverArtPicker";
+import { type ChangeEvent, type DragEvent, useState } from 'react';
+import type { ID3Metadata } from '../api';
+import { formatSize } from '../utils/formatSize';
+import { CoverArtPicker } from './CoverArtPicker';
 
 const CheckIcon = () => (
-  <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 12 12"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polyline points="2.5,6 5,8.5 9.5,3.5" />
   </svg>
 );
@@ -19,7 +26,10 @@ type RetagSectionProps = {
   onDragOver: (e: DragEvent) => void;
   onDragLeave: (e: DragEvent) => void;
   onFileChange: (file: File | null) => void;
-  onMetadataChange: <K extends keyof ID3Metadata>(key: K, value: ID3Metadata[K]) => void;
+  onMetadataChange: <K extends keyof ID3Metadata>(
+    key: K,
+    value: ID3Metadata[K],
+  ) => void;
   onCoverChange: (file: File | null) => void;
   // Donor file props
   donorFile: File | null;
@@ -34,15 +44,15 @@ type RetagSectionProps = {
   onImportFields: (fields: Set<string>) => void;
 };
 
-type MetadataField = "title" | "artist" | "album" | "year" | "track" | "cover";
+type MetadataField = 'title' | 'artist' | 'album' | 'year' | 'track' | 'cover';
 
 const FIELD_LABELS: Record<MetadataField, string> = {
-  title: "Title",
-  artist: "Artist",
-  album: "Album",
-  year: "Year",
-  track: "Track #",
-  cover: "Cover Art",
+  title: 'Title',
+  artist: 'Artist',
+  album: 'Album',
+  year: 'Year',
+  track: 'Track #',
+  cover: 'Cover Art',
 };
 
 export function RetagSection({
@@ -68,12 +78,14 @@ export function RetagSection({
   onDonorFileChange,
   onImportFields,
 }: RetagSectionProps) {
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => onFileChange(e.target.files?.[0] ?? null);
-  const handleDonorFileChange = (e: ChangeEvent<HTMLInputElement>) => onDonorFileChange(e.target.files?.[0] ?? null);
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) =>
+    onFileChange(e.target.files?.[0] ?? null);
+  const handleDonorFileChange = (e: ChangeEvent<HTMLInputElement>) =>
+    onDonorFileChange(e.target.files?.[0] ?? null);
 
   // Track which fields the user wants to import from donor
   const [selectedFields, setSelectedFields] = useState<Set<MetadataField>>(
-    new Set(["title", "artist", "album", "year", "track", "cover"])
+    new Set(['title', 'artist', 'album', 'year', 'track', 'cover']),
   );
 
   const toggleField = (field: MetadataField) => {
@@ -94,19 +106,26 @@ export function RetagSection({
 
   // Helper to get donor field value for display
   const getDonorFieldValue = (field: MetadataField): string | null => {
-    if (field === "cover") return donorCoverPreviewUrl ? "Available" : null;
+    if (field === 'cover') return donorCoverPreviewUrl ? 'Available' : null;
     return donorMetadata?.[field] || null;
   };
 
-  const availableFields: MetadataField[] = ["title", "artist", "album", "year", "track", "cover"];
-  const hasAnyDonorData = donorMetadata && (
-    donorMetadata.title ||
-    donorMetadata.artist ||
-    donorMetadata.album ||
-    donorMetadata.year ||
-    donorMetadata.track ||
-    donorCoverPreviewUrl
-  );
+  const availableFields: MetadataField[] = [
+    'title',
+    'artist',
+    'album',
+    'year',
+    'track',
+    'cover',
+  ];
+  const hasAnyDonorData =
+    donorMetadata &&
+    (donorMetadata.title ||
+      donorMetadata.artist ||
+      donorMetadata.album ||
+      donorMetadata.year ||
+      donorMetadata.track ||
+      donorCoverPreviewUrl);
 
   return (
     <>
@@ -115,19 +134,43 @@ export function RetagSection({
           <span className="step-number">2</span>
           Choose audio files
         </h2>
-        <p className="hint">Pick the MP3 to retag. Optionally pull tags and cover art from another MP3.</p>
+        <p className="hint">
+          Pick the MP3 to retag. Optionally pull tags and cover art from another
+          MP3.
+        </p>
         <div className="convert-files-grid">
-          <div className={`file-dropzone file-dropzone-small ${dragOver ? "drag-over" : ""} ${file ? "has-file" : ""}`} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}>
-            <input type="file" accept=".mp3,audio/mpeg" onChange={handleFileChange} className="file-input-hidden" id="retag-input" />
+          <div
+            className={`file-dropzone file-dropzone-small ${dragOver ? 'drag-over' : ''} ${file ? 'has-file' : ''}`}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+          >
+            <input
+              type="file"
+              accept=".mp3,audio/mpeg"
+              onChange={handleFileChange}
+              className="file-input-hidden"
+              id="retag-input"
+            />
             <label htmlFor="retag-input" className="file-dropzone-label">
               <div className="file-icon">
                 {file ? (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M9 12l2 2 4-4" />
                     <circle cx="12" cy="12" r="10" />
                   </svg>
                 ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="17,8 12,3 7,8" />
                     <line x1="12" y1="3" x2="12" y2="15" />
@@ -150,17 +193,38 @@ export function RetagSection({
             </label>
           </div>
 
-          <div className={`file-dropzone file-dropzone-small ${dragOverDonor ? "drag-over" : ""} ${donorFile ? "has-file" : ""}`} onDrop={onDonorDrop} onDragOver={onDonorDragOver} onDragLeave={onDonorDragLeave}>
-            <input type="file" accept=".mp3,audio/mpeg" onChange={handleDonorFileChange} className="file-input-hidden" id="donor-input" />
+          <div
+            className={`file-dropzone file-dropzone-small ${dragOverDonor ? 'drag-over' : ''} ${donorFile ? 'has-file' : ''}`}
+            onDrop={onDonorDrop}
+            onDragOver={onDonorDragOver}
+            onDragLeave={onDonorDragLeave}
+          >
+            <input
+              type="file"
+              accept=".mp3,audio/mpeg"
+              onChange={handleDonorFileChange}
+              className="file-input-hidden"
+              id="donor-input"
+            />
             <label htmlFor="donor-input" className="file-dropzone-label">
               <div className="file-icon">
                 {donorFile ? (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M9 12l2 2 4-4" />
                     <circle cx="12" cy="12" r="10" />
                   </svg>
                 ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="17,8 12,3 7,8" />
                     <line x1="12" y1="3" x2="12" y2="15" />
@@ -171,12 +235,16 @@ export function RetagSection({
                 {donorFile ? (
                   <>
                     <span className="file-name">{donorFile.name}</span>
-                    <span className="file-size">{formatSize(donorFile.size)}</span>
+                    <span className="file-size">
+                      {formatSize(donorFile.size)}
+                    </span>
                   </>
                 ) : (
                   <>
                     <span className="file-cta">MP3 donor (optional)</span>
-                    <span className="file-hint">Import tags & artwork from</span>
+                    <span className="file-hint">
+                      Import tags & artwork from
+                    </span>
                   </>
                 )}
               </div>
@@ -195,7 +263,10 @@ export function RetagSection({
                 const value = getDonorFieldValue(field);
                 const hasValue = value !== null;
                 return (
-                  <label key={field} className={`donor-field-item checkbox-label ${!hasValue ? "donor-field-disabled" : ""}`}>
+                  <label
+                    key={field}
+                    className={`donor-field-item checkbox-label ${!hasValue ? 'donor-field-disabled' : ''}`}
+                  >
                     <input
                       type="checkbox"
                       checked={selectedFields.has(field) && hasValue}
@@ -205,12 +276,18 @@ export function RetagSection({
                     <span className="checkbox-custom">
                       <CheckIcon />
                     </span>
-                    <span className="donor-field-label">{FIELD_LABELS[field]}</span>
-                    {hasValue && field !== "cover" && (
+                    <span className="donor-field-label">
+                      {FIELD_LABELS[field]}
+                    </span>
+                    {hasValue && field !== 'cover' && (
                       <span className="donor-field-value">{value}</span>
                     )}
-                    {hasValue && field === "cover" && donorCoverPreviewUrl && (
-                      <img src={donorCoverPreviewUrl} alt="Donor cover" className="donor-cover-preview" />
+                    {hasValue && field === 'cover' && donorCoverPreviewUrl && (
+                      <img
+                        src={donorCoverPreviewUrl}
+                        alt="Donor cover"
+                        className="donor-cover-preview"
+                      />
                     )}
                   </label>
                 );
@@ -236,40 +313,81 @@ export function RetagSection({
         <h2 className="section-title">
           <span className="step-number">3</span>
           Edit metadata
-          {loadingMetadata && <span className="loading-text"> (loading...)</span>}
+          {loadingMetadata && (
+            <span className="loading-text"> (loading...)</span>
+          )}
         </h2>
         <div className="retag-metadata-layout">
-          <CoverArtPicker previewUrl={coverPreviewUrl} inputId="retag-cover-input" onChange={onCoverChange} />
+          <CoverArtPicker
+            previewUrl={coverPreviewUrl}
+            inputId="retag-cover-input"
+            onChange={onCoverChange}
+          />
           <div className="options-grid retag-fields-grid">
             <div className="input-group">
               <label htmlFor="retagTitle">{FIELD_LABELS.title}</label>
-              <input id="retagTitle" type="text" value={metadata.title} onChange={(e) => onMetadataChange("title", e.target.value)} placeholder="Track title" />
+              <input
+                id="retagTitle"
+                type="text"
+                value={metadata.title}
+                onChange={(e) => onMetadataChange('title', e.target.value)}
+                placeholder="Track title"
+              />
             </div>
             <div className="input-group">
               <label htmlFor="retagArtist">{FIELD_LABELS.artist}</label>
-              <input id="retagArtist" type="text" value={metadata.artist} onChange={(e) => onMetadataChange("artist", e.target.value)} placeholder="Artist name" />
+              <input
+                id="retagArtist"
+                type="text"
+                value={metadata.artist}
+                onChange={(e) => onMetadataChange('artist', e.target.value)}
+                placeholder="Artist name"
+              />
             </div>
             <div className="input-group">
               <label htmlFor="retagAlbum">
-                {FIELD_LABELS.album} <span className="optional-label">(optional)</span>
+                {FIELD_LABELS.album}{' '}
+                <span className="optional-label">(optional)</span>
               </label>
-              <input id="retagAlbum" type="text" value={metadata.album} onChange={(e) => onMetadataChange("album", e.target.value)} placeholder="Album name" />
+              <input
+                id="retagAlbum"
+                type="text"
+                value={metadata.album}
+                onChange={(e) => onMetadataChange('album', e.target.value)}
+                placeholder="Album name"
+              />
             </div>
             <div className="input-group">
               <label htmlFor="retagYear">
-                {FIELD_LABELS.year} <span className="optional-label">(optional)</span>
+                {FIELD_LABELS.year}{' '}
+                <span className="optional-label">(optional)</span>
               </label>
-              <input id="retagYear" type="text" value={metadata.year ?? ""} onChange={(e) => onMetadataChange("year", e.target.value)} placeholder="e.g. 2024" />
+              <input
+                id="retagYear"
+                type="text"
+                value={metadata.year ?? ''}
+                onChange={(e) => onMetadataChange('year', e.target.value)}
+                placeholder="e.g. 2024"
+              />
             </div>
             <div className="input-group">
               <label htmlFor="retagTrack">
-                {FIELD_LABELS.track} <span className="optional-label">(optional)</span>
+                {FIELD_LABELS.track}{' '}
+                <span className="optional-label">(optional)</span>
               </label>
-              <input id="retagTrack" type="text" value={metadata.track ?? ""} onChange={(e) => onMetadataChange("track", e.target.value)} placeholder="e.g. 1" />
+              <input
+                id="retagTrack"
+                type="text"
+                value={metadata.track ?? ''}
+                onChange={(e) => onMetadataChange('track', e.target.value)}
+                placeholder="e.g. 1"
+              />
             </div>
           </div>
         </div>
-        <p className="hint">Existing metadata is prefilled from the file. Edit fields and retag.</p>
+        <p className="hint">
+          Existing metadata is prefilled from the file. Edit fields and retag.
+        </p>
       </section>
     </>
   );

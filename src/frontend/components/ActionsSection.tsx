@@ -1,5 +1,5 @@
-import type { GenericConvertOptions } from "../api";
-import type { Operation } from "../types";
+import type { GenericConvertOptions } from '../api';
+import type { Operation } from '../types';
 
 type ActionsSectionProps = {
   processing: boolean;
@@ -11,7 +11,9 @@ type ActionsSectionProps = {
   downloadUrl: string | null;
   downloadName: string | null;
   previewUrl: string | null;
-  batchPreviews?: { name: string; url: string; type: "audio" | "image" }[] | null;
+  batchPreviews?:
+    | { name: string; url: string; type: 'audio' | 'image' }[]
+    | null;
   operation: Operation;
   genericConvertOptions: GenericConvertOptions;
   onSubmit: () => void;
@@ -37,25 +39,30 @@ export function ActionsSection({
   onReset,
 }: ActionsSectionProps) {
   const submitLabel =
-    operation === "noise"
-      ? "Add noise + concat"
-      : operation === "cover"
-        ? "Extract cover"
-        : operation === "retag-wav"
-          ? "Convert to MP3"
-          : operation === "retag"
-            ? "Retag MP3"
-            : operation === "trim"
-              ? "Trim audio"
-              : operation === "visualize"
-                ? "Generate PNG"
+    operation === 'noise'
+      ? 'Add noise + concat'
+      : operation === 'cover'
+        ? 'Extract cover'
+        : operation === 'retag-wav'
+          ? 'Convert to MP3'
+          : operation === 'retag'
+            ? 'Retag MP3'
+            : operation === 'trim'
+              ? 'Trim audio'
+              : operation === 'visualize'
+                ? 'Generate PNG'
                 : `Convert to ${genericConvertOptions.format.toUpperCase()}`;
 
   // Trim has extra sections so the step number is 5
   // retag-wav and retag have the output filename section so step is 5
   // visualize has 3 sections before run so step is 4
   // Other operations have 3 sections before run so step is 4
-  const stepNumber = operation === "trim" || operation === "retag-wav" || operation === "retag" ? 5 : operation === "visualize" ? 4 : 4;
+  const stepNumber =
+    operation === 'trim' || operation === 'retag-wav' || operation === 'retag'
+      ? 5
+      : operation === 'visualize'
+        ? 4
+        : 4;
 
   return (
     <section className="section">
@@ -64,7 +71,11 @@ export function ActionsSection({
         Run
       </h2>
       <div className="actions">
-        <button className="btn btn-primary" onClick={onSubmit} disabled={processing || loadingMetadata || loadingRetagMetadata}>
+        <button
+          className="btn btn-primary"
+          onClick={onSubmit}
+          disabled={processing || loadingMetadata || loadingRetagMetadata}
+        >
           {processing ? (
             <>
               <span className="spinner" />
@@ -74,13 +85,26 @@ export function ActionsSection({
             submitLabel
           )}
         </button>
-        <button className="btn btn-secondary" onClick={onReset} disabled={processing}>
+        <button
+          className="btn btn-secondary"
+          onClick={onReset}
+          disabled={processing}
+        >
           Reset
         </button>
         {processing && progress !== null && (
           <div className="progress-inline">
-            <div className="progress-bar" role="progressbar" aria-valuenow={progress ?? 0} aria-valuemin={0} aria-valuemax={100}>
-              <div className="progress-fill" style={{ width: `${progress}%` }} />
+            <div
+              className="progress-bar"
+              role="progressbar"
+              aria-valuenow={progress ?? 0}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className="progress-fill"
+                style={{ width: `${progress}%` }}
+              />
             </div>
             <span className="progress-text">{progress}%</span>
           </div>
@@ -94,8 +118,17 @@ export function ActionsSection({
         <div className="result-card">
           <div className="result-header">
             <span className="result-label">Result ready</span>
-            <a href={downloadUrl} download={downloadName} className="download-link">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <a
+              href={downloadUrl}
+              download={downloadName}
+              className="download-link"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="7,10 12,15 17,10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
@@ -106,7 +139,7 @@ export function ActionsSection({
           {batchPreviews && batchPreviews.length > 0 && (
             <div className="result-preview batch-preview">
               {batchPreviews.map((item) =>
-                item.type === "image" ? (
+                item.type === 'image' ? (
                   <div key={item.url} className="preview-item">
                     <img src={item.url} alt={item.name} />
                     <span className="preview-name">{item.name}</span>
@@ -116,7 +149,10 @@ export function ActionsSection({
                     {isAiffFile(item.name) ? (
                       <>
                         <span className="preview-name">{item.name}</span>
-                        <span className="preview-note">Preview not available for AIFF. Please download to listen.</span>
+                        <span className="preview-note">
+                          Preview not available for AIFF. Please download to
+                          listen.
+                        </span>
                       </>
                     ) : (
                       <>
@@ -125,16 +161,18 @@ export function ActionsSection({
                       </>
                     )}
                   </div>
-                )
+                ),
               )}
             </div>
           )}
           {!batchPreviews && previewUrl && (
             <div className="result-preview">
-              {operation === "cover" || operation === "visualize" ? (
+              {operation === 'cover' || operation === 'visualize' ? (
                 <img src={previewUrl} alt="Preview" />
               ) : isAiffFile(downloadName) ? (
-                <p className="preview-note">Preview not available for AIFF. Please download to listen.</p>
+                <p className="preview-note">
+                  Preview not available for AIFF. Please download to listen.
+                </p>
               ) : (
                 <audio controls src={previewUrl} />
               )}

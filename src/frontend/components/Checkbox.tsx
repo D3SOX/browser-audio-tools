@@ -1,4 +1,4 @@
-import type { ChangeEvent, ReactNode } from "react";
+import type { ChangeEvent, ReactNode } from 'react';
 
 type CheckboxProps = {
   checked: boolean;
@@ -9,12 +9,25 @@ type CheckboxProps = {
 };
 
 const CheckIcon = () => (
-  <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 12 12"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polyline points="2.5,6 5,8.5 9.5,3.5" />
   </svg>
 );
 
-export function Checkbox({ checked, onChange, children, className = "", disabled = false }: CheckboxProps) {
+export function Checkbox({
+  checked,
+  onChange,
+  children,
+  className = '',
+  disabled = false,
+}: CheckboxProps) {
   return (
     <label className={`checkbox-label ${className}`}>
       <input
