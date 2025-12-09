@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Theme } from '../types';
 
-const getInitialTheme = (): Theme => {
-  if (typeof window === 'undefined') return 'system';
+const readStoredTheme = (): Theme | null => {
+  if (typeof window === 'undefined') return null;
   const initial = (window as typeof window & { __INITIAL_THEME__?: Theme })
     .__INITIAL_THEME__;
-  return initial ?? 'system';
+  const stored = localStorage.getItem('theme') as Theme | null;
+  return stored ?? initial ?? null;
 };
 
 export function useTheme() {
   const isBrowser = typeof window !== 'undefined';
-  const [theme, setThemeState] = useState<Theme>(getInitialTheme);
+  // Start from "system" to match the server-rendered markup and avoid a
+  // hydration mismatch for the indicator position. We then sync to the stored
+  // preference after mount.
+  const [theme, setThemeState] = useState<Theme>('system');
 
   useEffect(() => {
     if (!isBrowser) return;
-    const stored = localStorage.getItem('theme') as Theme | null;
-    if (stored) {
-      setThemeState(stored);
-    }
+    const initial = readStoredTheme();
+    setThemeState(initial ?? 'system');
   }, [isBrowser]);
 
   const resolvedTheme = useMemo(() => {
