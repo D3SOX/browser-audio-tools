@@ -1,17 +1,19 @@
 import react from '@astrojs/react';
 import vercel from '@astrojs/vercel';
 import { defineConfig } from 'astro/config';
+import type { Connect, Plugin, ViteDevServer } from 'vite';
+import type { ServerResponse } from 'http';
 
 const coiHeaders = {
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Embedder-Policy': 'require-corp',
 };
 
-function coiHeadersPlugin() {
+function coiHeadersPlugin(): Plugin {
   return {
     name: 'coi-headers',
-    configureServer(server: any) {
-      server.middlewares.use((_: unknown, res: any, next: () => void) => {
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use((_: Connect.IncomingMessage, res: ServerResponse, next: Connect.NextFunction) => {
         res.setHeader('Cross-Origin-Opener-Policy', coiHeaders['Cross-Origin-Opener-Policy']);
         res.setHeader(
           'Cross-Origin-Embedder-Policy',
