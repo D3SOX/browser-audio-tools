@@ -88,12 +88,18 @@ export function TrimSection({
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const regionsRef = useRef<RegionsPlugin | null>(null);
+  const optionsRef = useRef(options);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [startTimeInput, setStartTimeInput] = useState('0:00.00');
   const [endTimeInput, setEndTimeInput] = useState('0:00.00');
+
+  // Keep options ref in sync
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onFileChange(e.target.files?.[0] ?? null);
@@ -172,7 +178,7 @@ export function TrimSection({
 
       // Update options with full duration
       onOptionsChange({
-        ...options,
+        ...optionsRef.current,
         startTime: 0,
         endTime: dur,
       });
@@ -182,7 +188,7 @@ export function TrimSection({
       // Listen to region updates
       region.on('update-end', () => {
         onOptionsChange({
-          ...options,
+          ...optionsRef.current,
           startTime: region.start,
           endTime: region.end,
         });
@@ -205,7 +211,7 @@ export function TrimSection({
       wavesurferRef.current = null;
       regionsRef.current = null;
     };
-  }, [file, options, onOptionsChange]);
+  }, [file, onOptionsChange]);
 
   // Update region when time inputs change programmatically
   const updateRegion = useCallback((start: number, end: number) => {
