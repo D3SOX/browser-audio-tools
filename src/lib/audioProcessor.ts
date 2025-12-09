@@ -26,27 +26,24 @@ let ffmpeg: FFmpeg | null = null;
 let loadPromise: Promise<void> | null = null;
 let coreSelectionLogged = false;
 
-function canUseMultiThreadedCore() {
-  return (
-    typeof SharedArrayBuffer !== 'undefined' &&
-    typeof Atomics !== 'undefined' &&
-    typeof crossOriginIsolated !== 'undefined' &&
-    crossOriginIsolated === true
-  );
-}
-
 function selectCoreBaseURL(): { baseURL: string; reason: string } {
   const missing: string[] = [];
-  if (typeof SharedArrayBuffer === 'undefined') missing.push('SharedArrayBuffer');
+  if (typeof SharedArrayBuffer === 'undefined') {
+    missing.push('SharedArrayBuffer');
+  }
   if (typeof Atomics === 'undefined') missing.push('Atomics');
-  if (typeof crossOriginIsolated === 'undefined' || crossOriginIsolated !== true) {
+  if (
+    typeof crossOriginIsolated === 'undefined' ||
+    crossOriginIsolated !== true
+  ) {
     missing.push('crossOriginIsolated');
   }
 
   if (missing.length === 0) {
     return {
       baseURL: CORE_MT_BASE_URL,
-      reason: 'Using multi-threaded core: crossOriginIsolated with SAB/Atomics available.',
+      reason:
+        'Using multi-threaded core: crossOriginIsolated with SAB/Atomics available.',
     };
   }
 
@@ -77,7 +74,9 @@ async function ensureFFmpegLoaded(): Promise<FFmpeg> {
         if (!coreSelectionLogged) {
           console.info('[ffmpeg] core selection', {
             version: CORE_VERSION,
-            core: coreBaseURL.includes('core-mt') ? 'core-mt (multi-threaded)' : 'core (single-threaded)',
+            core: coreBaseURL.includes('core-mt')
+              ? 'core-mt (multi-threaded)'
+              : 'core (single-threaded)',
             reason,
           });
           coreSelectionLogged = true;

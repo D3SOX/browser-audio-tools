@@ -22,7 +22,8 @@ export function Footer({ analyticsEnabled, onToggleAnalytics }: Props) {
         <a href="https://browserytools.com/" target="_blank" rel="noreferrer">
           BrowseryTools
         </a>{' '}
-        (open source) — a collection of browser-based tools for various purposes.
+        (open source) — a collection of browser-based tools for various
+        purposes.
       </p>
       <div className="footer-analytics-toggle">
         <span className="analytics-toggle-label">Anonymous analytics:</span>

@@ -44,7 +44,6 @@ import {
 } from './components/VisualizerSection';
 import type { Operation } from './types';
 
-
 const OPERATIONS: Operation[] = [
   'noise',
   'cover',

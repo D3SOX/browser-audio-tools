@@ -4,9 +4,5 @@
     "types": ["astro/client", "bun", "dom-view-transitions"],
     "baseUrl": "."
   },
-  "include": [
-    "src",
-    "astro.config.ts",
-    "vercel.env.d.ts"
-  ]
+  "include": ["src", "astro.config.ts", "vercel.env.d.ts"]
 }
