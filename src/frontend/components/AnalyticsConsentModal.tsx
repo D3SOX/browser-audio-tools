@@ -13,6 +13,7 @@ export function AnalyticsConsentModal({
 }: Props) {
   const isLikelyBlocked =
     adblockStatus === 'blocked' || adblockStatus === 'unknown';
+  const isAcceptDisabled = isLikelyBlocked;
 
   return (
     <div className="consent-modal-backdrop">
@@ -75,10 +76,7 @@ export function AnalyticsConsentModal({
               Heads-up for AdBlock/uBlock Origin users
             </p>
             <p className="consent-modal-warning-text">
-              Adblockers (including uBlock Origin) block these analytics calls by
-              default. If you choose to allow analytics, you’ll also need to
-              disable your adblocker (or add an allowlist rule) for this site so
-              events can be sent.
+              We think that you are using an adblocker that will block these calls. If you want to allow analytics, you will need to disable your adblocker (or add an allowlist rule) for this site.
             </p>
           </div>
         )}
@@ -94,6 +92,12 @@ export function AnalyticsConsentModal({
             type="button"
             className="btn btn-secondary"
             onClick={onAccept}
+            disabled={isAcceptDisabled}
+            title={
+              isAcceptDisabled
+                ? 'Disable your adblocker for this site to allow analytics.'
+                : undefined
+            }
           >
             Allow analytics
           </button>
