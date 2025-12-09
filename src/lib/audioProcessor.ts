@@ -387,7 +387,7 @@ export interface TrimOptions {
 
 const FORMAT_CONFIG: Record<OutputFormat, { codec: string; ext: string; mime: string; lossless: boolean; supportsCoverArt: boolean }> = {
   mp3: { codec: "libmp3lame", ext: "mp3", mime: "audio/mpeg", lossless: false, supportsCoverArt: true },
-  ogg: { codec: "libvorbis", ext: "ogg", mime: "audio/ogg", lossless: false, supportsCoverArt: false }, // FFmpeg cannot embed art in OGG
+  ogg: { codec: "libvorbis", ext: "ogg", mime: "audio/ogg", lossless: false, supportsCoverArt: true }, // Via METADATA_BLOCK_PICTURE
   aac: { codec: "aac", ext: "m4a", mime: "audio/mp4", lossless: false, supportsCoverArt: true },
   wav: { codec: "pcm_s16le", ext: "wav", mime: "audio/wav", lossless: true, supportsCoverArt: false }, // WAV has no metadata
   flac: { codec: "flac", ext: "flac", mime: "audio/flac", lossless: true, supportsCoverArt: true },
@@ -396,7 +396,6 @@ const FORMAT_CONFIG: Record<OutputFormat, { codec: string; ext: string; mime: st
 
 /**
  * Check if a format supports embedded cover art.
- * OGG/Opus: FFmpeg does NOT support embedding cover art (known limitation).
  * WAV: No metadata support at all.
  */
 export function formatSupportsCoverArt(format: OutputFormat): boolean {
@@ -423,6 +422,126 @@ const VORBIS_Q_FOR_BITRATE: Record<string, number> = {
   "256k": 6.5,
   "320k": 7.5,
 };
+
+/**
+ * Build a METADATA_BLOCK_PICTURE base64 string for OGG Vorbis cover art.
+ * This follows the FLAC picture block format used in Vorbis comments.
+ * 
+ * Structure (all integers are big-endian):
+ * - Picture type (4 bytes): 3 = front cover
+ * - MIME type length (4 bytes)
+ * - MIME type (ASCII string)
+ * - Description length (4 bytes)
+ * - Description (UTF-8 string, can be empty)
+ * - Width (4 bytes): 0 if unknown
+ * - Height (4 bytes): 0 if unknown
+ * - Color depth (4 bytes): 0 if unknown
+ * - Number of colors (4 bytes): 0 for non-indexed
+ * - Picture data length (4 bytes)
+ * - Picture data (binary)
+ */
+function buildMetadataBlockPicture(imageData: Uint8Array, mimeType: string): string {
+  const encoder = new TextEncoder();
+  const mimeBytes = encoder.encode(mimeType);
+  const description = encoder.encode(""); // Empty description
+  
+  // Calculate total size
+  const totalSize = 4 + 4 + mimeBytes.length + 4 + description.length + 4 + 4 + 4 + 4 + 4 + imageData.length;
+  const buffer = new ArrayBuffer(totalSize);
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  
+  let offset = 0;
+  
+  // Picture type: 3 = front cover
+  view.setUint32(offset, 3, false); // big-endian
+  offset += 4;
+  
+  // MIME type length
+  view.setUint32(offset, mimeBytes.length, false);
+  offset += 4;
+  
+  // MIME type
+  bytes.set(mimeBytes, offset);
+  offset += mimeBytes.length;
+  
+  // Description length
+  view.setUint32(offset, description.length, false);
+  offset += 4;
+  
+  // Description (empty)
+  bytes.set(description, offset);
+  offset += description.length;
+  
+  // Width (0 = unknown)
+  view.setUint32(offset, 0, false);
+  offset += 4;
+  
+  // Height (0 = unknown)
+  view.setUint32(offset, 0, false);
+  offset += 4;
+  
+  // Color depth (0 = unknown)
+  view.setUint32(offset, 0, false);
+  offset += 4;
+  
+  // Number of colors (0 for non-indexed)
+  view.setUint32(offset, 0, false);
+  offset += 4;
+  
+  // Picture data length
+  view.setUint32(offset, imageData.length, false);
+  offset += 4;
+  
+  // Picture data
+  bytes.set(imageData, offset);
+  
+  // Base64 encode
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Detect MIME type from image data by checking magic bytes.
+ */
+function detectImageMimeType(data: Uint8Array): string {
+  if (data[0] === 0xFF && data[1] === 0xD8 && data[2] === 0xFF) {
+    return "image/jpeg";
+  }
+  if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4E && data[3] === 0x47) {
+    return "image/png";
+  }
+  // Default to JPEG
+  return "image/jpeg";
+}
+
+/**
+ * Try to extract cover art from input file using FFmpeg.
+ * Returns null if no cover art is found.
+ */
+async function tryExtractCoverArt(ff: FFmpeg, inputName: string): Promise<Uint8Array | null> {
+  const coverName = "extracted_cover.jpg";
+  try {
+    // Try to extract cover art - this will fail silently if none exists
+    await ff.exec(["-i", inputName, "-an", "-vcodec", "copy", "-y", coverName]);
+    const data = await ff.readFile(coverName);
+    if (data instanceof Uint8Array && data.length > 0) {
+      return data;
+    }
+  } catch {
+    // No cover art found, that's fine
+  } finally {
+    try {
+      ff.deleteFile(coverName);
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
+  return null;
+}
 
 function parseBitrateKbps(bitrate: string): string {
   const match = /^(\d+)(k)$/i.exec(bitrate.trim());
@@ -486,21 +605,36 @@ export async function convertAudio(
 
   await ff.writeFile(inputName, input);
 
+  // For OGG, try to extract cover art first to embed via METADATA_BLOCK_PICTURE
+  let oggCoverArtBase64: string | null = null;
+  if (options.format === "ogg") {
+    const coverData = await tryExtractCoverArt(ff, inputName);
+    if (coverData) {
+      const mimeType = detectImageMimeType(coverData);
+      oggCoverArtBase64 = buildMetadataBlockPicture(coverData, mimeType);
+    }
+  }
+
   const args = ["-i", inputName];
 
   // Map audio stream
   args.push("-map", "0:a:0");
 
-  // Cover art handling: preserve for formats that support it
-  if (config.supportsCoverArt) {
+  // Cover art handling
+  // OGG uses METADATA_BLOCK_PICTURE (handled separately), not video stream mapping
+  if (config.supportsCoverArt && options.format !== "ogg") {
     // Map video stream (cover art) if present - the "?" makes it optional
     args.push("-map", "0:v?");
     args.push("-c:v", "copy");
     args.push("-disposition:v", "attached_pic");
     // Copy metadata from source
     args.push("-map_metadata", "0");
+  } else if (options.format === "ogg") {
+    // OGG: strip video stream but copy metadata, we'll add cover via METADATA_BLOCK_PICTURE
+    args.push("-vn");
+    args.push("-map_metadata", "0");
   } else {
-    // Strip video for formats that don't support cover art (OGG, WAV)
+    // Strip video for formats that don't support cover art (WAV)
     args.push("-vn");
   }
 
@@ -520,6 +654,11 @@ export async function convertAudio(
   if (options.format === "ogg") {
     const quality = VORBIS_Q_FOR_BITRATE[normalizedBitrate] ?? 4;
     args.push("-qscale:a", String(quality));
+    
+    // Add cover art via METADATA_BLOCK_PICTURE Vorbis comment
+    if (oggCoverArtBase64) {
+      args.push("-metadata", `METADATA_BLOCK_PICTURE=${oggCoverArtBase64}`);
+    }
   } else if (!config.lossless) {
     // Lossy formats: set explicit bitrate
     args.push("-b:a", normalizedBitrate);
@@ -690,6 +829,16 @@ export async function trimAudio(
 
   await ff.writeFile(inputName, input);
 
+  // For OGG, try to extract cover art first to embed via METADATA_BLOCK_PICTURE
+  let oggCoverArtBase64: string | null = null;
+  if (targetFormat === "ogg" && options.format !== "source") {
+    const coverData = await tryExtractCoverArt(ff, inputName);
+    if (coverData) {
+      const mimeType = detectImageMimeType(coverData);
+      oggCoverArtBase64 = buildMetadataBlockPicture(coverData, mimeType);
+    }
+  }
+
   const args: string[] = [];
 
   const duration = options.endTime - options.startTime;
@@ -737,14 +886,15 @@ export async function trimAudio(
     args.push("-map", "0:a:0");
     args.push("-map_metadata", "0");
 
-    // Cover art handling: preserve for formats that support it
-    if (config.supportsCoverArt) {
+    // Cover art handling
+    // OGG uses METADATA_BLOCK_PICTURE (handled separately), not video stream mapping
+    if (config.supportsCoverArt && targetFormat !== "ogg") {
       // Map video stream (cover art) if present - the "?" makes it optional
       args.push("-map", "0:v?");
       args.push("-c:v", "copy");
       args.push("-disposition:v", "attached_pic");
     } else {
-      // Strip video for formats that don't support cover art (OGG, WAV)
+      // Strip video for OGG (uses METADATA_BLOCK_PICTURE) and WAV (no cover support)
       args.push("-vn");
     }
 
@@ -753,6 +903,11 @@ export async function trimAudio(
     // Bitrate for lossy formats when explicitly re-encoding to a new format
     if (!config.lossless && options.format !== "source") {
       args.push("-b:a", options.bitrate);
+    }
+
+    // OGG: add cover art via METADATA_BLOCK_PICTURE Vorbis comment
+    if (targetFormat === "ogg" && oggCoverArtBase64) {
+      args.push("-metadata", `METADATA_BLOCK_PICTURE=${oggCoverArtBase64}`);
     }
 
     // AIFF: enable ID3v2 tags to store cover art

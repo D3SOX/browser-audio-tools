@@ -176,9 +176,7 @@ export function GenericConvertSection({
         </div>
         {!formatSupportsCoverArt(options.format) && (
           <p className="format-warning">
-            ⚠️ {options.format === "ogg"
-              ? "OGG Vorbis does not support embedded cover art (FFmpeg limitation)."
-              : "WAV does not support cover art."}
+            ⚠️ WAV does not support cover art.
           </p>
         )}
       </section>

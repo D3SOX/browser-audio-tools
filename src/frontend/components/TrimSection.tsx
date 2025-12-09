@@ -465,9 +465,7 @@ export function TrimSection({
 
           {options.format !== "source" && !formatSupportsCoverArt(options.format as OutputFormat) && (
             <p className="format-warning">
-              ⚠️ {options.format === "ogg"
-                ? "OGG Vorbis does not support embedded cover art (FFmpeg limitation)."
-                : "WAV does not support cover art."}
+              ⚠️ WAV does not support cover art.
             </p>
           )}
 
