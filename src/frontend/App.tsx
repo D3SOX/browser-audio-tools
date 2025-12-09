@@ -1,3 +1,4 @@
+import { track } from '@vercel/analytics';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import type { ChangeEvent, DragEvent } from 'react';
@@ -31,7 +32,6 @@ import { ActionsSection } from './components/ActionsSection';
 import { AudioFilePicker } from './components/AudioFilePicker';
 import { ConvertSection } from './components/ConvertSection';
 import { Footer } from './components/Footer';
-import { Hero } from './components/Hero';
 import { NoiseOptions } from './components/NoiseOptions';
 import { OperationPicker } from './components/OperationPicker';
 import { OutputFilenameSection } from './components/OutputFilenameSection';
@@ -45,10 +45,6 @@ import {
 import { useTheme } from './hooks/useTheme';
 import type { Operation } from './types';
 
-type AppProps = {
-  showHero?: boolean;
-  wrapWithLayout?: boolean;
-};
 
 const OPERATIONS: Operation[] = [
   'noise',
@@ -143,10 +139,7 @@ const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
   visualize: createEmptyResult(),
 });
 
-export default function App({
-  showHero = true,
-  wrapWithLayout = true,
-}: AppProps) {
+export default function App() {
   const isBrowser = typeof window !== 'undefined';
   const { theme, setTheme } = useTheme();
   const { consent, setConsent } = useAnalyticsConsent();
@@ -248,6 +241,17 @@ export default function App({
     trimOptions.format !== 'source' &&
     LOSSLESS_FORMATS.includes(trimOptions.format);
 
+  const trackPageview = useCallback(() => {
+    if (!isBrowser || consent !== true) return;
+    track('pageview', {
+      page: `${window.location.pathname}${window.location.hash}`,
+    });
+  }, [consent, isBrowser]);
+
+  useEffect(() => {
+    trackPageview();
+  }, [trackPageview]);
+
   useEffect(() => {
     currentOperationRef.current = operation;
   }, [operation]);
@@ -329,8 +333,9 @@ export default function App({
       setBatchPreviews(savedResult.batchPreviews ?? null);
       setProgress(savedResult.progress);
       setProcessing(savedResult.processing);
+      trackPageview();
     },
-    [resultsByOperation, isBrowser],
+    [resultsByOperation, isBrowser, trackPageview],
   );
 
   useEffect(() => {
@@ -1132,8 +1137,8 @@ export default function App({
     }
   };
 
-  const content = (
-    <>
+  return (
+    <div className="app-wrapper">
       {consent === true && (
         <>
           <SpeedInsights />
@@ -1147,7 +1152,6 @@ export default function App({
         />
       )}
       <div className="app-container">
-        {showHero && <Hero theme={theme} setTheme={setTheme} />}
 
         <main className="card">
           <OperationPicker
@@ -1398,12 +1402,6 @@ export default function App({
           />
         </main>
       </div>
-    </>
+    </div>
   );
-
-  if (!wrapWithLayout) {
-    return content;
-  }
-
-  return <div className="app-wrapper">{content}</div>;
 }

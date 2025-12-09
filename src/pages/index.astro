@@ -6,7 +6,7 @@ import '../frontend/styles.css';
 
 const title = 'Browser Audio Tools';
 const description =
-  'Convert, retag, trim, visualize, and batch-process audio fully in the browser. No uploads required.';
+  'Various tools for client-side audio processing';
 ---
 
 <BaseLayout {title} {description}>
@@ -35,14 +35,8 @@ const description =
         </div>
         <ThemeToggleIsland client:idle />
       </header>
-    </div>
 
-    <div class="app-container">
-      <App
-        showHero={false}
-        wrapWithLayout={false}
-        client:visible
-      />
+      <App client:visible />
     </div>
   </div>
 </BaseLayout>

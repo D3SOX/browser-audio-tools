@@ -167,10 +167,8 @@ body {
 .app-wrapper {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 1.5rem;
+  align-items: flex-start;
+  justify-content: center;
   padding: 2rem 1rem 4rem;
 }
 
