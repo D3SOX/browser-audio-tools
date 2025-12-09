@@ -388,6 +388,8 @@ body {
   background: var(--dropzone-bg);
   transition: all 0.2s ease;
   overflow: hidden;
+  display: block;
+  width: 100%;
 }
 
 .file-dropzone:hover {
