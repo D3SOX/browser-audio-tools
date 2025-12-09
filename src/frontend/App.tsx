@@ -1,3 +1,4 @@
+import { track } from '@vercel/analytics';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import type { ChangeEvent, DragEvent } from 'react';
@@ -31,7 +32,6 @@ import { ActionsSection } from './components/ActionsSection';
 import { AudioFilePicker } from './components/AudioFilePicker';
 import { ConvertSection } from './components/ConvertSection';
 import { Footer } from './components/Footer';
-import { Hero } from './components/Hero';
 import { NoiseOptions } from './components/NoiseOptions';
 import { OperationPicker } from './components/OperationPicker';
 import { OutputFilenameSection } from './components/OutputFilenameSection';
@@ -42,7 +42,6 @@ import {
   type VisualizerHandle,
   VisualizerSection,
 } from './components/VisualizerSection';
-import { useTheme } from './hooks/useTheme';
 import type { Operation } from './types';
 
 const OPERATIONS: Operation[] = [
@@ -56,6 +55,7 @@ const OPERATIONS: Operation[] = [
 ];
 
 const getOperationFromHash = (): Operation | null => {
+  if (typeof window === 'undefined') return null;
   const hash = window.location.hash.slice(1);
   return OPERATIONS.includes(hash as Operation) ? (hash as Operation) : null;
 };
@@ -138,12 +138,10 @@ const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
 });
 
 export default function App() {
-  const { theme, setTheme } = useTheme();
+  const isBrowser = typeof window !== 'undefined';
   const { consent, setConsent } = useAnalyticsConsent();
   const [files, setFiles] = useState<File[]>([]);
-  const [operation, setOperation] = useState<Operation>(
-    () => getOperationFromHash() ?? 'noise',
-  );
+  const [operation, setOperation] = useState<Operation>('noise');
   const [options, setOptions] = useState<ProcessOptions>(defaultOptions);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -152,6 +150,7 @@ export default function App() {
   const [downloadName, setDownloadName] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const [resultsByOperation, setResultsByOperation] = useState<
     Record<Operation, OperationResult>
   >(createEmptyResultsMap);
@@ -239,16 +238,36 @@ export default function App() {
     trimOptions.format !== 'source' &&
     LOSSLESS_FORMATS.includes(trimOptions.format);
 
+  const trackPageview = useCallback(() => {
+    if (!isBrowser || consent !== true) return;
+    track('pageview', {
+      page: `${window.location.pathname}${window.location.hash}`,
+    });
+  }, [consent, isBrowser]);
+
+  useEffect(() => {
+    trackPageview();
+  }, [trackPageview]);
+
   useEffect(() => {
     currentOperationRef.current = operation;
   }, [operation]);
 
+  // Track client hydration to avoid rendering client-only UI (e.g., modals) during SSR.
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   // Set initial hash on mount if not already valid
   useEffect(() => {
-    if (!getOperationFromHash()) {
-      window.history.replaceState(null, '', `#${operation}`);
+    if (!isBrowser) return;
+    const hashOp = getOperationFromHash();
+    if (hashOp) {
+      setOperation(hashOp);
+    } else {
+      window.history.replaceState(null, '', '#noise');
     }
-  }, [operation]);
+  }, [isBrowser]);
 
   const replaceOperationResult = useCallback(
     (op: Operation, nextResult: OperationResult) => {
@@ -298,7 +317,7 @@ export default function App() {
   const handleOperationChange = useCallback(
     (nextOperation: Operation) => {
       setOperation(nextOperation);
-      if (window.location.hash.slice(1) !== nextOperation) {
+      if (isBrowser && window.location.hash.slice(1) !== nextOperation) {
         window.history.replaceState(null, '', `#${nextOperation}`);
       }
       const savedResult =
@@ -311,11 +330,13 @@ export default function App() {
       setBatchPreviews(savedResult.batchPreviews ?? null);
       setProgress(savedResult.progress);
       setProcessing(savedResult.processing);
+      trackPageview();
     },
-    [resultsByOperation],
+    [resultsByOperation, isBrowser, trackPageview],
   );
 
   useEffect(() => {
+    if (!isBrowser) return;
     const onHashChange = () => {
       const hashOp = getOperationFromHash();
       if (hashOp && hashOp !== operation) {
@@ -324,7 +345,7 @@ export default function App() {
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, [operation, handleOperationChange]);
+  }, [operation, handleOperationChange, isBrowser]);
 
   const handleWavFileSelect = useCallback(
     async (nextFile: File | null) => {
@@ -1114,227 +1135,268 @@ export default function App() {
   };
 
   return (
-    <div className="app-wrapper">
+    <>
       {consent === true && (
         <>
           <SpeedInsights />
           <Analytics />
         </>
       )}
-      {consent === null && (
+      {hydrated && consent === null && (
         <AnalyticsConsentModal
           onAccept={() => setConsent(true)}
           onDecline={() => setConsent(false)}
         />
       )}
-      <div className="app-container">
-        <Hero theme={theme} setTheme={setTheme} />
 
-        <main className="card">
-          <OperationPicker
-            operation={operation}
-            onChange={handleOperationChange}
+      <main className="card">
+        <OperationPicker
+          operation={operation}
+          onChange={handleOperationChange}
+        />
+
+        <div
+          hidden={
+            operation === 'retag-wav' ||
+            operation === 'convert' ||
+            operation === 'retag' ||
+            operation === 'trim' ||
+            operation === 'visualize'
+          }
+          aria-hidden={
+            operation === 'retag-wav' ||
+            operation === 'convert' ||
+            operation === 'retag' ||
+            operation === 'trim' ||
+            operation === 'visualize'
+          }
+          data-operation-section="audio-file-picker"
+        >
+          <AudioFilePicker
+            files={files}
+            dragOver={dragOver}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onChange={handleFileChange}
           />
+        </div>
 
-          {operation !== 'retag-wav' &&
-            operation !== 'convert' &&
-            operation !== 'retag' &&
-            operation !== 'trim' &&
-            operation !== 'visualize' && (
-              <AudioFilePicker
-                files={files}
-                dragOver={dragOver}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onChange={handleFileChange}
-              />
-            )}
-
-          {operation === 'retag-wav' && (
-            <RetagWavSection
-              wavFile={wavFile}
-              mp3SourceFile={mp3SourceFile}
-              dragOverWav={dragOverWav}
-              dragOverMp3={dragOverMp3}
-              loadingMetadata={loadingMetadata}
-              metadata={metadata}
-              coverPreviewUrl={convertCoverPreviewUrl}
-              onWavDrop={handleWavDrop}
-              onMp3Drop={handleMp3Drop}
-              onWavDragOver={(e) => {
-                e.preventDefault();
-                setDragOverWav(true);
-              }}
-              onWavDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverWav(false);
-              }}
-              onMp3DragOver={(e) => {
-                e.preventDefault();
-                setDragOverMp3(true);
-              }}
-              onMp3DragLeave={(e) => {
-                e.preventDefault();
-                setDragOverMp3(false);
-              }}
-              onWavChange={handleWavFileSelect}
-              onMp3Change={handleMp3SourceSelect}
-              onMetadataChange={updateMetadata}
-              onCoverChange={handleConvertCoverChange}
-            />
-          )}
-
-          {operation === 'convert' && (
-            <ConvertSection
-              files={genericConvertFiles}
-              dragOver={dragOverGeneric}
-              options={genericConvertOptions}
-              isLosslessFormat={isLosslessFormat}
-              sampleRateOptions={
-                SAMPLE_RATES_BY_FORMAT[genericConvertOptions.format]
-              }
-              onDrop={handleGenericConvertDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverGeneric(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverGeneric(false);
-              }}
-              onFilesChange={handleGenericConvertFilesSelect}
-              onOptionChange={updateGenericConvertOption}
-            />
-          )}
-
-          {operation === 'retag' && (
-            <RetagSection
-              file={retagFile}
-              dragOver={dragOverRetag}
-              loadingMetadata={loadingRetagMetadata}
-              metadata={retagMetadata}
-              coverPreviewUrl={retagCoverPreviewUrl}
-              onDrop={handleRetagDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverRetag(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverRetag(false);
-              }}
-              onFileChange={handleRetagFileSelect}
-              onMetadataChange={updateRetagMetadata}
-              onCoverChange={handleRetagCoverChange}
-              donorFile={retagDonorFile}
-              donorMetadata={retagDonorMetadata}
-              donorCoverPreviewUrl={retagDonorCoverPreviewUrl}
-              loadingDonorMetadata={loadingDonorMetadata}
-              dragOverDonor={dragOverDonor}
-              onDonorDrop={handleDonorDrop}
-              onDonorDragOver={(e) => {
-                e.preventDefault();
-                setDragOverDonor(true);
-              }}
-              onDonorDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverDonor(false);
-              }}
-              onDonorFileChange={handleDonorFileSelect}
-              onImportFields={handleImportDonorFields}
-            />
-          )}
-
-          {operation === 'trim' && (
-            <TrimSection
-              file={trimFile}
-              dragOver={dragOverTrim}
-              options={trimOptions}
-              isLosslessFormat={isTrimLosslessFormat}
-              onDrop={handleTrimDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverTrim(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverTrim(false);
-              }}
-              onFileChange={handleTrimFileSelect}
-              onOptionsChange={setTrimOptions}
-            />
-          )}
-
-          {operation === 'visualize' && (
-            <VisualizerSection
-              ref={visualizerRef}
-              file={visualizerFile}
-              dragOver={dragOverVisualizer}
-              onDrop={handleVisualizerDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverVisualizer(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setDragOverVisualizer(false);
-              }}
-              onFileChange={handleVisualizerFileSelect}
-            />
-          )}
-
-          {operation === 'noise' && (
-            <NoiseOptions options={options} onChange={updateOption} />
-          )}
-
-          {operation === 'cover' && (
-            <section className="section">
-              <h2 className="section-title">
-                <span className="step-number">3</span>
-                Cover extraction
-              </h2>
-              <p className="hint">
-                We will extract the embedded cover as a JPEG if present.
-              </p>
-            </section>
-          )}
-
-          {(operation === 'retag-wav' || operation === 'retag') && (
-            <OutputFilenameSection
-              outputFilename={outputFilename}
-              onFilenameChange={setOutputFilename}
-              useAutoFilename={useAutoFilename}
-              onAutoFilenameChange={setUseAutoFilename}
-              placeholder={
-                operation === 'retag-wav' ? 'output.mp3' : 'output_retagged.mp3'
-              }
-            />
-          )}
-
-          <ActionsSection
-            processing={processing}
+        <div
+          hidden={operation !== 'retag-wav'}
+          aria-hidden={operation !== 'retag-wav'}
+          data-operation-section="retag-wav"
+        >
+          <RetagWavSection
+            wavFile={wavFile}
+            mp3SourceFile={mp3SourceFile}
+            dragOverWav={dragOverWav}
+            dragOverMp3={dragOverMp3}
             loadingMetadata={loadingMetadata}
-            loadingRetagMetadata={loadingRetagMetadata}
-            progress={progress}
-            status={status}
-            error={error}
-            downloadUrl={downloadUrl}
-            downloadName={downloadName}
-            previewUrl={previewUrl}
-            batchPreviews={batchPreviews}
-            operation={operation}
-            genericConvertOptions={genericConvertOptions}
-            onSubmit={submit}
-            onReset={handleReset}
+            metadata={metadata}
+            coverPreviewUrl={convertCoverPreviewUrl}
+            onWavDrop={handleWavDrop}
+            onMp3Drop={handleMp3Drop}
+            onWavDragOver={(e) => {
+              e.preventDefault();
+              setDragOverWav(true);
+            }}
+            onWavDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverWav(false);
+            }}
+            onMp3DragOver={(e) => {
+              e.preventDefault();
+              setDragOverMp3(true);
+            }}
+            onMp3DragLeave={(e) => {
+              e.preventDefault();
+              setDragOverMp3(false);
+            }}
+            onWavChange={handleWavFileSelect}
+            onMp3Change={handleMp3SourceSelect}
+            onMetadataChange={updateMetadata}
+            onCoverChange={handleConvertCoverChange}
           />
+        </div>
 
-          <Footer
-            analyticsEnabled={consent === true}
-            onToggleAnalytics={() => setConsent(consent !== true)}
+        <div
+          hidden={operation !== 'convert'}
+          aria-hidden={operation !== 'convert'}
+          data-operation-section="convert"
+        >
+          <ConvertSection
+            files={genericConvertFiles}
+            dragOver={dragOverGeneric}
+            options={genericConvertOptions}
+            isLosslessFormat={isLosslessFormat}
+            sampleRateOptions={
+              SAMPLE_RATES_BY_FORMAT[genericConvertOptions.format]
+            }
+            onDrop={handleGenericConvertDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOverGeneric(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverGeneric(false);
+            }}
+            onFilesChange={handleGenericConvertFilesSelect}
+            onOptionChange={updateGenericConvertOption}
           />
-        </main>
-      </div>
-    </div>
+        </div>
+
+        <div
+          hidden={operation !== 'retag'}
+          aria-hidden={operation !== 'retag'}
+          data-operation-section="retag"
+        >
+          <RetagSection
+            file={retagFile}
+            dragOver={dragOverRetag}
+            loadingMetadata={loadingRetagMetadata}
+            metadata={retagMetadata}
+            coverPreviewUrl={retagCoverPreviewUrl}
+            onDrop={handleRetagDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOverRetag(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverRetag(false);
+            }}
+            onFileChange={handleRetagFileSelect}
+            onMetadataChange={updateRetagMetadata}
+            onCoverChange={handleRetagCoverChange}
+            donorFile={retagDonorFile}
+            donorMetadata={retagDonorMetadata}
+            donorCoverPreviewUrl={retagDonorCoverPreviewUrl}
+            loadingDonorMetadata={loadingDonorMetadata}
+            dragOverDonor={dragOverDonor}
+            onDonorDrop={handleDonorDrop}
+            onDonorDragOver={(e) => {
+              e.preventDefault();
+              setDragOverDonor(true);
+            }}
+            onDonorDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverDonor(false);
+            }}
+            onDonorFileChange={handleDonorFileSelect}
+            onImportFields={handleImportDonorFields}
+          />
+        </div>
+
+        <div
+          hidden={operation !== 'trim'}
+          aria-hidden={operation !== 'trim'}
+          data-operation-section="trim"
+        >
+          <TrimSection
+            file={trimFile}
+            dragOver={dragOverTrim}
+            options={trimOptions}
+            isLosslessFormat={isTrimLosslessFormat}
+            onDrop={handleTrimDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOverTrim(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverTrim(false);
+            }}
+            onFileChange={handleTrimFileSelect}
+            onOptionsChange={setTrimOptions}
+          />
+        </div>
+
+        <div
+          hidden={operation !== 'visualize'}
+          aria-hidden={operation !== 'visualize'}
+          data-operation-section="visualize"
+        >
+          <VisualizerSection
+            ref={visualizerRef}
+            file={visualizerFile}
+            dragOver={dragOverVisualizer}
+            onDrop={handleVisualizerDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOverVisualizer(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDragOverVisualizer(false);
+            }}
+            onFileChange={handleVisualizerFileSelect}
+          />
+        </div>
+
+        <div
+          hidden={operation !== 'noise'}
+          aria-hidden={operation !== 'noise'}
+          data-operation-section="noise"
+        >
+          <NoiseOptions options={options} onChange={updateOption} />
+        </div>
+
+        <div
+          hidden={operation !== 'cover'}
+          aria-hidden={operation !== 'cover'}
+          data-operation-section="cover"
+        >
+          <section className="section">
+            <h2 className="section-title">
+              <span className="step-number">3</span>
+              Cover extraction
+            </h2>
+            <p className="hint">
+              We will extract the embedded cover as a JPEG if present.
+            </p>
+          </section>
+        </div>
+
+        <div
+          hidden={operation !== 'retag-wav' && operation !== 'retag'}
+          aria-hidden={operation !== 'retag-wav' && operation !== 'retag'}
+          data-operation-section="output-filename"
+        >
+          <OutputFilenameSection
+            outputFilename={outputFilename}
+            onFilenameChange={setOutputFilename}
+            useAutoFilename={useAutoFilename}
+            onAutoFilenameChange={setUseAutoFilename}
+            placeholder={
+              operation === 'retag-wav' ? 'output.mp3' : 'output_retagged.mp3'
+            }
+          />
+        </div>
+
+        <ActionsSection
+          processing={processing}
+          loadingMetadata={loadingMetadata}
+          loadingRetagMetadata={loadingRetagMetadata}
+          progress={progress}
+          status={status}
+          error={error}
+          downloadUrl={downloadUrl}
+          downloadName={downloadName}
+          previewUrl={previewUrl}
+          batchPreviews={batchPreviews}
+          operation={operation}
+          genericConvertOptions={genericConvertOptions}
+          onSubmit={submit}
+          onReset={handleReset}
+        />
+
+        <Footer
+          analyticsEnabled={consent === true}
+          onToggleAnalytics={() => setConsent(consent !== true)}
+        />
+      </main>
+    </>
   );
 }

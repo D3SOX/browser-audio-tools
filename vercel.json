@@ -4,7 +4,7 @@
   "bunVersion": "1.x",
   "buildCommand": "bun run build",
   "installCommand": "bun install",
-  "outputDirectory": "dist",
+  "outputDirectory": ".vercel/output/static",
   "headers": [
     {
       "source": "/(.*)",

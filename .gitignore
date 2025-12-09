@@ -4,6 +4,10 @@ node_modules
 # output
 out
 dist
+.astro
+.vercel
+.astro
+.vercel
 *.tgz
 
 # code coverage
