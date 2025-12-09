@@ -638,7 +638,9 @@ export default function App() {
         }
         setRetagCover(retagDonorCover);
         // Create a new URL from the donor cover data
-        const blob = new Blob([retagDonorCover], { type: 'image/jpeg' });
+        const blob = new Blob([new Uint8Array(retagDonorCover)], {
+          type: 'image/jpeg',
+        });
         setRetagCoverPreviewUrl(URL.createObjectURL(blob));
       }
     },

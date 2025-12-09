@@ -1,22 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Theme } from '../types';
 
-// View Transitions API type declarations
-interface ViewTransition {
-  ready: Promise<void>;
-  finished: Promise<void>;
-  updateCallbackDone: Promise<void>;
-  skipTransition: () => void;
-}
-
-declare global {
-  interface Document {
-    startViewTransition?: (
-      callback: () => void | Promise<void>,
-    ) => ViewTransition;
-  }
-}
-
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = localStorage.getItem('theme') as Theme | null;

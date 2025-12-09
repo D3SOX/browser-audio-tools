@@ -245,12 +245,12 @@ export interface ID3Metadata {
 
 export async function readMetadata(
   input: Uint8Array,
-  inputFilename?: string,
+  inputFilename: string,
   onProgress?: ProgressCallback,
 ): Promise<ID3Metadata> {
   const ff = await ensureFFmpegLoaded();
 
-  const ext = inputFilename?.split('.').pop()?.toLowerCase() ?? 'mp3';
+  const ext = inputFilename?.split('.').pop()?.toLowerCase();
   const inputName = `meta_input.${ext}`;
   const outputName = 'metadata.txt';
 
@@ -593,8 +593,7 @@ function buildMetadataBlockPicture(
 
   // Base64 encode
   let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    const byte = bytes[i];
+  for (const byte of bytes) {
     binary += String.fromCharCode(byte);
   }
   return btoa(binary);
