@@ -83,6 +83,30 @@ export const VisualizerSection = forwardRef<
   const [barHeight, setBarHeight] = useState(1); // Amplitude multiplier
   const [normalize, setNormalize] = useState(true);
 
+  // Refs to capture initial values for WaveSurfer creation
+  const waveColorRef = useRef(waveColor);
+  const normalizeRef = useRef(normalize);
+  const barWidthRef = useRef(barWidth);
+  const barGapRef = useRef(barGap);
+  const barHeightRef = useRef(barHeight);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    waveColorRef.current = waveColor;
+  }, [waveColor]);
+  useEffect(() => {
+    normalizeRef.current = normalize;
+  }, [normalize]);
+  useEffect(() => {
+    barWidthRef.current = barWidth;
+  }, [barWidth]);
+  useEffect(() => {
+    barGapRef.current = barGap;
+  }, [barGap]);
+  useEffect(() => {
+    barHeightRef.current = barHeight;
+  }, [barHeight]);
+
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onFileChange(e.target.files?.[0] ?? null);
   };
@@ -121,15 +145,15 @@ export const VisualizerSection = forwardRef<
     // Create WaveSurfer instance
     const ws = WaveSurfer.create({
       container: waveformRef.current,
-      waveColor,
-      progressColor: waveColor,
+      waveColor: waveColorRef.current,
+      progressColor: waveColorRef.current,
       cursorWidth: 0,
       height: 200,
-      normalize,
-      barWidth,
-      barGap,
-      barRadius: Math.min(barWidth, 4),
-      barHeight,
+      normalize: normalizeRef.current,
+      barWidth: barWidthRef.current,
+      barGap: barGapRef.current,
+      barRadius: Math.min(barWidthRef.current, 4),
+      barHeight: barHeightRef.current,
       interact: false,
     });
 
@@ -151,7 +175,7 @@ export const VisualizerSection = forwardRef<
       ws.destroy();
       wavesurferRef.current = null;
     };
-  }, [file, waveColor, normalize, barWidth, barGap, barHeight]);
+  }, [file]);
 
   // Update WaveSurfer options when style settings change
   useEffect(() => {
