@@ -16,7 +16,9 @@ const CheckIcon = () => (
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    aria-hidden="true"
   >
+    <title>Checkmark</title>
     <polyline points="2.5,6 5,8.5 9.5,3.5" />
   </svg>
 );

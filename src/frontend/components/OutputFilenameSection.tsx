@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Checkbox } from './Checkbox';
 
 type OutputFilenameSectionProps = {
@@ -17,6 +18,7 @@ export function OutputFilenameSection({
 }: OutputFilenameSectionProps) {
   // Strip .mp3 from placeholder since we show it as a suffix
   const basePlaceholder = placeholder.replace(/\.mp3$/i, '');
+  const filenameInputId = useId();
 
   return (
     <section className="section">
@@ -26,10 +28,10 @@ export function OutputFilenameSection({
       </h2>
       <div className="options-grid">
         <div className="input-group">
-          <label htmlFor="outputFilename">Filename</label>
+          <label htmlFor={filenameInputId}>Filename</label>
           <div className="input-with-suffix">
             <input
-              id="outputFilename"
+              id={filenameInputId}
               type="text"
               value={outputFilename}
               onChange={(e) => onFilenameChange(e.target.value)}

@@ -15,7 +15,8 @@ export function ThemeToggle({ theme, setTheme }: ThemeToggleProps) {
   const activeIndex = options.findIndex((opt) => opt.value === theme);
 
   return (
-    <div className="theme-switch" aria-label="Theme selector">
+    <fieldset className="theme-switch" aria-label="Theme selector">
+      <legend className="sr-only">Theme selector</legend>
       <div className="theme-switch-track">
         <span
           className="theme-switch-indicator"
@@ -37,6 +38,6 @@ export function ThemeToggle({ theme, setTheme }: ThemeToggleProps) {
           </button>
         ))}
       </div>
-    </div>
+    </fieldset>
   );
 }

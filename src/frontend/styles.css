@@ -128,6 +128,18 @@
   box-sizing: border-box;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 html {
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -233,6 +245,24 @@ body {
 .theme-switch {
   position: relative;
   min-width: 220px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.theme-switch legend {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.theme-switch legend.sr-only {
+  /* Ensure visually hidden legend does not affect layout */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
 }
 
 .theme-switch-track {

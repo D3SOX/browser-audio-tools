@@ -1,4 +1,10 @@
-import type { ChangeEvent, DragEvent } from 'react';
+import {
+  type ChangeEvent,
+  type DragEvent,
+  type KeyboardEvent,
+  useId,
+  useRef,
+} from 'react';
 import type { ID3Metadata } from '../api';
 import { formatSize } from '../utils/formatSize';
 import { CoverArtPicker } from './CoverArtPicker';
@@ -45,10 +51,31 @@ export function RetagWavSection({
   onMetadataChange,
   onCoverChange,
 }: RetagWavSectionProps) {
+  const wavInputId = useId();
+  const mp3InputId = useId();
+  const coverInputId = useId();
+  const titleInputId = useId();
+  const artistInputId = useId();
+  const albumInputId = useId();
+  const yearInputId = useId();
+  const trackInputId = useId();
+  const wavInputRef = useRef<HTMLInputElement>(null);
+  const mp3InputRef = useRef<HTMLInputElement>(null);
   const handleWavChange = (e: ChangeEvent<HTMLInputElement>) =>
     onWavChange(e.target.files?.[0] ?? null);
   const handleMp3Change = (e: ChangeEvent<HTMLInputElement>) =>
     onMp3Change(e.target.files?.[0] ?? null);
+  const openWavDialog = () => wavInputRef.current?.click();
+  const openMp3Dialog = () => mp3InputRef.current?.click();
+  const handleKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    action: () => void,
+  ) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      action();
+    }
+  };
 
   return (
     <>
@@ -61,20 +88,25 @@ export function RetagWavSection({
           Outputs a 320kbps MP3. Optionally import tags and art from an MP3.
         </p>
         <div className="convert-files-grid">
-          <div
+          <button
             className={`file-dropzone file-dropzone-small ${dragOverWav ? 'drag-over' : ''} ${wavFile ? 'has-file' : ''}`}
             onDrop={onWavDrop}
             onDragOver={onWavDragOver}
             onDragLeave={onWavDragLeave}
+            type="button"
+            aria-label="Select WAV source audio"
+            onClick={openWavDialog}
+            onKeyDown={(event) => handleKeyDown(event, openWavDialog)}
           >
             <input
               type="file"
               accept=".wav,audio/wav"
               onChange={handleWavChange}
               className="file-input-hidden"
-              id="wav-input"
+              id={wavInputId}
+              ref={wavInputRef}
             />
-            <label htmlFor="wav-input" className="file-dropzone-label">
+            <div className="file-dropzone-label">
               <div className="file-icon">
                 {wavFile ? (
                   <svg
@@ -82,7 +114,9 @@ export function RetagWavSection({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
+                    aria-hidden="true"
                   >
+                    <title>WAV selected</title>
                     <path d="M9 12l2 2 4-4" />
                     <circle cx="12" cy="12" r="10" />
                   </svg>
@@ -92,7 +126,9 @@ export function RetagWavSection({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
+                    aria-hidden="true"
                   >
+                    <title>Select WAV</title>
                     <path d="M9 18V5l12-2v13" />
                     <circle cx="6" cy="18" r="3" />
                     <circle cx="18" cy="16" r="3" />
@@ -114,23 +150,28 @@ export function RetagWavSection({
                   </>
                 )}
               </div>
-            </label>
-          </div>
+            </div>
+          </button>
 
-          <div
+          <button
             className={`file-dropzone file-dropzone-small ${dragOverMp3 ? 'drag-over' : ''} ${mp3SourceFile ? 'has-file' : ''}`}
             onDrop={onMp3Drop}
             onDragOver={onMp3DragOver}
             onDragLeave={onMp3DragLeave}
+            type="button"
+            aria-label="Select MP3 for metadata"
+            onClick={openMp3Dialog}
+            onKeyDown={(event) => handleKeyDown(event, openMp3Dialog)}
           >
             <input
               type="file"
               accept=".mp3,audio/mpeg"
               onChange={handleMp3Change}
               className="file-input-hidden"
-              id="mp3-source-input"
+              id={mp3InputId}
+              ref={mp3InputRef}
             />
-            <label htmlFor="mp3-source-input" className="file-dropzone-label">
+            <div className="file-dropzone-label">
               <div className="file-icon">
                 {mp3SourceFile ? (
                   <svg
@@ -138,7 +179,9 @@ export function RetagWavSection({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
+                    aria-hidden="true"
                   >
+                    <title>MP3 selected</title>
                     <path d="M9 12l2 2 4-4" />
                     <circle cx="12" cy="12" r="10" />
                   </svg>
@@ -148,7 +191,9 @@ export function RetagWavSection({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
+                    aria-hidden="true"
                   >
+                    <title>Select MP3</title>
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14,2 14,8 20,8" />
                     <line x1="16" y1="13" x2="8" y2="13" />
@@ -173,8 +218,8 @@ export function RetagWavSection({
                   </>
                 )}
               </div>
-            </label>
-          </div>
+            </div>
+          </button>
         </div>
       </section>
 
@@ -189,14 +234,14 @@ export function RetagWavSection({
         <div className="retag-metadata-layout">
           <CoverArtPicker
             previewUrl={coverPreviewUrl}
-            inputId="convert-cover-input"
+            inputId={coverInputId}
             onChange={onCoverChange}
           />
           <div className="options-grid retag-fields-grid">
             <div className="input-group">
-              <label htmlFor="metaTitle">Title</label>
+              <label htmlFor={titleInputId}>Title</label>
               <input
-                id="metaTitle"
+                id={titleInputId}
                 type="text"
                 value={metadata.title}
                 onChange={(e) => onMetadataChange('title', e.target.value)}
@@ -204,9 +249,9 @@ export function RetagWavSection({
               />
             </div>
             <div className="input-group">
-              <label htmlFor="metaArtist">Artist</label>
+              <label htmlFor={artistInputId}>Artist</label>
               <input
-                id="metaArtist"
+                id={artistInputId}
                 type="text"
                 value={metadata.artist}
                 onChange={(e) => onMetadataChange('artist', e.target.value)}
@@ -214,11 +259,11 @@ export function RetagWavSection({
               />
             </div>
             <div className="input-group">
-              <label htmlFor="metaAlbum">
+              <label htmlFor={albumInputId}>
                 Album <span className="optional-label">(optional)</span>
               </label>
               <input
-                id="metaAlbum"
+                id={albumInputId}
                 type="text"
                 value={metadata.album}
                 onChange={(e) => onMetadataChange('album', e.target.value)}
@@ -226,11 +271,11 @@ export function RetagWavSection({
               />
             </div>
             <div className="input-group">
-              <label htmlFor="metaYear">
+              <label htmlFor={yearInputId}>
                 Year <span className="optional-label">(optional)</span>
               </label>
               <input
-                id="metaYear"
+                id={yearInputId}
                 type="text"
                 value={metadata.year ?? ''}
                 onChange={(e) => onMetadataChange('year', e.target.value)}
@@ -238,11 +283,11 @@ export function RetagWavSection({
               />
             </div>
             <div className="input-group">
-              <label htmlFor="metaTrack">
+              <label htmlFor={trackInputId}>
                 Track # <span className="optional-label">(optional)</span>
               </label>
               <input
-                id="metaTrack"
+                id={trackInputId}
                 type="text"
                 value={metadata.track ?? ''}
                 onChange={(e) => onMetadataChange('track', e.target.value)}

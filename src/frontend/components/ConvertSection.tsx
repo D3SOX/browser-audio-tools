@@ -1,4 +1,5 @@
-import type { ChangeEvent, DragEvent } from 'react';
+import type { ChangeEvent, DragEvent, KeyboardEvent } from 'react';
+import { useId, useRef } from 'react';
 import type {
   Channels,
   GenericConvertOptions,
@@ -36,9 +37,22 @@ export function ConvertSection({
   onFilesChange,
   onOptionChange,
 }: ConvertSectionProps) {
+  const inputId = useId();
+  const outputFormatId = useId();
+  const bitrateId = useId();
+  const sampleRateId = useId();
+  const channelsId = useId();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files ?? []);
     onFilesChange(selectedFiles);
+  };
+  const openFileDialog = () => fileInputRef.current?.click();
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openFileDialog();
+    }
   };
 
   const hasFiles = files.length > 0;
@@ -51,11 +65,15 @@ export function ConvertSection({
           <span className="step-number">2</span>
           Choose audio files
         </h2>
-        <div
+        <button
           className={`file-dropzone ${dragOver ? 'drag-over' : ''} ${hasFiles ? 'has-file' : ''}`}
           onDrop={onDrop}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
+          type="button"
+          aria-label="Audio file dropzone"
+          onClick={openFileDialog}
+          onKeyDown={handleKeyDown}
         >
           <input
             type="file"
@@ -63,9 +81,10 @@ export function ConvertSection({
             multiple
             onChange={handleFileChange}
             className="file-input-hidden"
-            id="convert-input"
+            id={inputId}
+            ref={fileInputRef}
           />
-          <label htmlFor="convert-input" className="file-dropzone-label">
+          <div className="file-dropzone-label">
             <div className="file-icon">
               {hasFiles ? (
                 <svg
@@ -73,7 +92,9 @@ export function ConvertSection({
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
+                  aria-hidden="true"
                 >
+                  <title>Files selected</title>
                   <path d="M9 12l2 2 4-4" />
                   <circle cx="12" cy="12" r="10" />
                 </svg>
@@ -83,7 +104,9 @@ export function ConvertSection({
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
+                  aria-hidden="true"
                 >
+                  <title>Select files</title>
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="17,8 12,3 7,8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
@@ -95,7 +118,7 @@ export function ConvertSection({
                 <>
                   <span className="file-name">
                     {files.length === 1
-                      ? files[0]!.name
+                      ? files[0]?.name
                       : `${files.length} files selected`}
                   </span>
                   <span className="file-size">{formatSize(totalSize)}</span>
@@ -112,8 +135,8 @@ export function ConvertSection({
                 </>
               )}
             </div>
-          </label>
-        </div>
+          </div>
+        </button>
         {files.length > 1 && (
           <ul className="file-list">
             {files.map((f, i) => (
@@ -133,9 +156,9 @@ export function ConvertSection({
         </h2>
         <div className="options-grid">
           <div className="input-group">
-            <label htmlFor="outputFormat">Output format</label>
+            <label htmlFor={outputFormatId}>Output format</label>
             <select
-              id="outputFormat"
+              id={outputFormatId}
               value={options.format}
               onChange={(e) =>
                 onOptionChange('format', e.target.value as OutputFormat)
@@ -156,7 +179,7 @@ export function ConvertSection({
           <div
             className={`input-group ${isLosslessFormat ? 'input-group-disabled' : ''}`}
           >
-            <label htmlFor="convertBitrate" className="label-with-tooltip">
+            <label htmlFor={bitrateId} className="label-with-tooltip">
               <span>Bitrate</span>
               <span
                 className={`tooltip-icon ${isLosslessFormat ? 'tooltip-icon-active' : ''}`}
@@ -169,7 +192,7 @@ export function ConvertSection({
               </span>
             </label>
             <select
-              id="convertBitrate"
+              id={bitrateId}
               value={options.bitrate}
               onChange={(e) => onOptionChange('bitrate', e.target.value)}
               disabled={isLosslessFormat}
@@ -182,9 +205,9 @@ export function ConvertSection({
             </select>
           </div>
           <div className="input-group">
-            <label htmlFor="sampleRate">Sample rate</label>
+            <label htmlFor={sampleRateId}>Sample rate</label>
             <select
-              id="sampleRate"
+              id={sampleRateId}
               value={options.sampleRate}
               onChange={(e) =>
                 onOptionChange(
@@ -201,9 +224,9 @@ export function ConvertSection({
             </select>
           </div>
           <div className="input-group">
-            <label htmlFor="channels">Channels</label>
+            <label htmlFor={channelsId}>Channels</label>
             <select
-              id="channels"
+              id={channelsId}
               value={options.channels}
               onChange={(e) => {
                 const value = e.target.value;

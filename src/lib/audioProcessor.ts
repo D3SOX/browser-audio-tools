@@ -63,7 +63,10 @@ async function ensureFFmpegLoaded(): Promise<FFmpeg> {
     })();
   }
   await loadPromise;
-  return ffmpeg!;
+  if (!ffmpeg) {
+    throw new Error('Failed to load FFmpeg.');
+  }
+  return ffmpeg;
 }
 
 function cleanupFiles(ff: FFmpeg, names: string[]) {
@@ -589,7 +592,8 @@ function buildMetadataBlockPicture(
   // Base64 encode
   let binary = '';
   for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]!);
+    const byte = bytes[i];
+    binary += String.fromCharCode(byte);
   }
   return btoa(binary);
 }

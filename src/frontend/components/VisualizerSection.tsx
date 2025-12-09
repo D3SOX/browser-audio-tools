@@ -1,8 +1,9 @@
-import type { ChangeEvent, DragEvent } from 'react';
+import type { ChangeEvent, DragEvent, KeyboardEvent } from 'react';
 import {
   forwardRef,
   useCallback,
   useEffect,
+  useId,
   useImperativeHandle,
   useRef,
   useState,
@@ -39,6 +40,14 @@ export const VisualizerSection = forwardRef<
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const fileUrlRef = useRef<string | null>(null);
+  const fileInputId = useId();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const waveColorId = useId();
+  const backgroundColorId = useId();
+  const backgroundOpacityId = useId();
+  const barWidthId = useId();
+  const barGapId = useId();
+  const barHeightId = useId();
   const [isLoading, setIsLoading] = useState(false);
 
   // Color options
@@ -76,6 +85,16 @@ export const VisualizerSection = forwardRef<
 
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onFileChange(e.target.files?.[0] ?? null);
+  };
+  const openFileDialog = () => fileInputRef.current?.click();
+  const handleKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    action: () => void,
+  ) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      action();
+    }
   };
 
   // Initialize WaveSurfer when file changes
@@ -132,7 +151,7 @@ export const VisualizerSection = forwardRef<
       ws.destroy();
       wavesurferRef.current = null;
     };
-  }, [file]);
+  }, [file, waveColor, normalize, barWidth, barGap, barHeight]);
 
   // Update WaveSurfer options when style settings change
   useEffect(() => {
@@ -160,12 +179,13 @@ export const VisualizerSection = forwardRef<
       1,
       'dataURL',
     );
-    if (!dataUrls || dataUrls.length === 0) {
+    const [firstUrl] = dataUrls ?? [];
+    if (!firstUrl) {
       throw new Error('Failed to export waveform image');
     }
 
     // Convert data URL to blob
-    const response = await fetch(dataUrls[0]!);
+    const response = await fetch(firstUrl);
     const waveformBlob = await response.blob();
     const waveformImg = await createImageBitmap(waveformBlob);
 
@@ -220,23 +240,25 @@ export const VisualizerSection = forwardRef<
           <span className="step-number">2</span>
           Choose audio file
         </h2>
-        <div
+        <button
           className={`file-dropzone ${dragOver ? 'drag-over' : ''} ${file ? 'has-file' : ''}`}
           onDrop={onDrop}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
+          type="button"
+          aria-label="Select audio file"
+          onClick={openFileDialog}
+          onKeyDown={(event) => handleKeyDown(event, openFileDialog)}
         >
           <input
             type="file"
             accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.m4a"
             onChange={handleFileInputChange}
             className="file-input-hidden"
-            id="visualizer-file-input"
+            id={fileInputId}
+            ref={fileInputRef}
           />
-          <label
-            htmlFor="visualizer-file-input"
-            className="file-dropzone-label"
-          >
+          <div className="file-dropzone-label">
             <div className="file-icon">
               {file ? (
                 <svg
@@ -244,7 +266,9 @@ export const VisualizerSection = forwardRef<
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
+                  aria-hidden="true"
                 >
+                  <title>File selected</title>
                   <path d="M9 12l2 2 4-4" />
                   <circle cx="12" cy="12" r="10" />
                 </svg>
@@ -254,7 +278,9 @@ export const VisualizerSection = forwardRef<
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
+                  aria-hidden="true"
                 >
+                  <title>Select audio</title>
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="17,8 12,3 7,8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
@@ -278,8 +304,8 @@ export const VisualizerSection = forwardRef<
                 </>
               )}
             </div>
-          </label>
-        </div>
+          </div>
+        </button>
       </section>
 
       {file && (
@@ -292,11 +318,11 @@ export const VisualizerSection = forwardRef<
           <div className="visualizer-options">
             <div className="color-picker-row">
               <div className="color-picker-group">
-                <label htmlFor="waveColor">Wave color</label>
+                <label htmlFor={waveColorId}>Wave color</label>
                 <div className="color-input-wrapper">
                   <input
                     type="color"
-                    id="waveColor"
+                    id={waveColorId}
                     value={waveColor}
                     onChange={(e) => setWaveColor(e.target.value)}
                     className="color-input"
@@ -323,11 +349,11 @@ export const VisualizerSection = forwardRef<
                 </div>
               </div>
               <div className="color-picker-group">
-                <label htmlFor="backgroundColor">Background color</label>
+                <label htmlFor={backgroundColorId}>Background color</label>
                 <div className="color-input-wrapper">
                   <input
                     type="color"
-                    id="backgroundColor"
+                    id={backgroundColorId}
                     value={backgroundColor}
                     onChange={(e) => setBackgroundColor(e.target.value)}
                     className="color-input"
@@ -354,12 +380,12 @@ export const VisualizerSection = forwardRef<
                 </div>
               </div>
               <div className="slider-group opacity-slider">
-                <label htmlFor="bgOpacity">
+                <label htmlFor={backgroundOpacityId}>
                   Background opacity: {backgroundOpacity}%
                 </label>
                 <input
                   type="range"
-                  id="bgOpacity"
+                  id={backgroundOpacityId}
                   min="0"
                   max="100"
                   step="5"
@@ -371,10 +397,10 @@ export const VisualizerSection = forwardRef<
 
             <div className="visualizer-sliders">
               <div className="slider-group">
-                <label htmlFor="barWidth">Bar width: {barWidth}px</label>
+                <label htmlFor={barWidthId}>Bar width: {barWidth}px</label>
                 <input
                   type="range"
-                  id="barWidth"
+                  id={barWidthId}
                   min="1"
                   max="10"
                   step="1"
@@ -383,10 +409,10 @@ export const VisualizerSection = forwardRef<
                 />
               </div>
               <div className="slider-group">
-                <label htmlFor="barGap">Bar gap: {barGap}px</label>
+                <label htmlFor={barGapId}>Bar gap: {barGap}px</label>
                 <input
                   type="range"
-                  id="barGap"
+                  id={barGapId}
                   min="0"
                   max="5"
                   step="1"
@@ -395,12 +421,12 @@ export const VisualizerSection = forwardRef<
                 />
               </div>
               <div className="slider-group">
-                <label htmlFor="barHeight">
+                <label htmlFor={barHeightId}>
                   Amplitude: {barHeight.toFixed(1)}x
                 </label>
                 <input
                   type="range"
-                  id="barHeight"
+                  id={barHeightId}
                   min="0.5"
                   max="3"
                   step="0.1"

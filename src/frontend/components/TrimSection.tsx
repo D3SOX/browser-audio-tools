@@ -1,5 +1,5 @@
-import type { ChangeEvent, DragEvent } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, DragEvent, KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import type { OutputFormat, TrimOutputFormat } from '../api';
@@ -54,14 +54,14 @@ function parseTime(str: string): number | null {
   // Parse formats like "1:23.45" or "83.45" or "83"
   const colonMatch = str.match(/^(\d+):(\d{1,2})(?:\.(\d{1,2}))?$/);
   if (colonMatch) {
-    const mins = parseInt(colonMatch[1]!, 10);
-    const secs = parseInt(colonMatch[2]!, 10);
+    const mins = parseInt(colonMatch[1] ?? '0', 10);
+    const secs = parseInt(colonMatch[2] ?? '0', 10);
     const ms = colonMatch[3] ? parseInt(colonMatch[3].padEnd(2, '0'), 10) : 0;
     return mins * 60 + secs + ms / 100;
   }
   const numMatch = str.match(/^(\d+(?:\.\d*)?)$/);
   if (numMatch) {
-    return parseFloat(numMatch[1]!);
+    return parseFloat(numMatch[1] ?? '');
   }
   return null;
 }
@@ -77,6 +77,14 @@ export function TrimSection({
   onFileChange,
   onOptionsChange,
 }: TrimSectionProps) {
+  const fileInputId = useId();
+  const trimStartId = useId();
+  const trimEndId = useId();
+  const outputFormatId = useId();
+  const bitrateId = useId();
+  const silenceThresholdId = useId();
+  const silenceDurationId = useId();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const regionsRef = useRef<RegionsPlugin | null>(null);
@@ -89,6 +97,16 @@ export function TrimSection({
 
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onFileChange(e.target.files?.[0] ?? null);
+  };
+  const openFileDialog = () => fileInputRef.current?.click();
+  const handleKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    action: () => void,
+  ) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      action();
+    }
   };
 
   const updateOption = useCallback(
@@ -187,15 +205,14 @@ export function TrimSection({
       wavesurferRef.current = null;
       regionsRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file]);
+  }, [file, options, onOptionsChange]);
 
   // Update region when time inputs change programmatically
   const updateRegion = useCallback((start: number, end: number) => {
     if (!regionsRef.current) return;
     const regions = regionsRef.current.getRegions();
     if (regions.length > 0) {
-      regions[0]!.setOptions({ start, end });
+      regions[0]?.setOptions({ start, end });
     }
   }, []);
 
@@ -266,20 +283,25 @@ export function TrimSection({
           <span className="step-number">2</span>
           Choose audio file
         </h2>
-        <div
+        <button
           className={`file-dropzone ${dragOver ? 'drag-over' : ''} ${file ? 'has-file' : ''}`}
           onDrop={onDrop}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
+          type="button"
+          aria-label="Select audio to trim"
+          onClick={openFileDialog}
+          onKeyDown={(event) => handleKeyDown(event, openFileDialog)}
         >
           <input
             type="file"
             accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.m4a"
             onChange={handleFileInputChange}
             className="file-input-hidden"
-            id="trim-file-input"
+            id={fileInputId}
+            ref={fileInputRef}
           />
-          <label htmlFor="trim-file-input" className="file-dropzone-label">
+          <div className="file-dropzone-label">
             <div className="file-icon">
               {file ? (
                 <svg
@@ -287,7 +309,9 @@ export function TrimSection({
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
+                  aria-hidden="true"
                 >
+                  <title>File selected</title>
                   <path d="M9 12l2 2 4-4" />
                   <circle cx="12" cy="12" r="10" />
                 </svg>
@@ -297,7 +321,9 @@ export function TrimSection({
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
+                  aria-hidden="true"
                 >
+                  <title>Select audio</title>
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="17,8 12,3 7,8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
@@ -321,8 +347,8 @@ export function TrimSection({
                 </>
               )}
             </div>
-          </label>
-        </div>
+          </div>
+        </button>
       </section>
 
       {file && (
@@ -344,9 +370,9 @@ export function TrimSection({
           <div className="trim-controls">
             <div className="trim-time-inputs">
               <div className="input-group input-group-compact">
-                <label htmlFor="trimStart">Start</label>
+                <label htmlFor={trimStartId}>Start</label>
                 <input
-                  id="trimStart"
+                  id={trimStartId}
                   type="text"
                   value={startTimeInput}
                   onChange={handleStartTimeChange}
@@ -355,9 +381,9 @@ export function TrimSection({
                 />
               </div>
               <div className="input-group input-group-compact">
-                <label htmlFor="trimEnd">End</label>
+                <label htmlFor={trimEndId}>End</label>
                 <input
-                  id="trimEnd"
+                  id={trimEndId}
                   type="text"
                   value={endTimeInput}
                   onChange={handleEndTimeChange}
@@ -386,7 +412,9 @@ export function TrimSection({
                     fill="currentColor"
                     width="20"
                     height="20"
+                    aria-hidden="true"
                   >
+                    <title>Pause</title>
                     <rect x="6" y="4" width="4" height="16" />
                     <rect x="14" y="4" width="4" height="16" />
                   </svg>
@@ -396,7 +424,9 @@ export function TrimSection({
                     fill="currentColor"
                     width="20"
                     height="20"
+                    aria-hidden="true"
                   >
+                    <title>Play</title>
                     <polygon points="5,3 19,12 5,21" />
                   </svg>
                 )}
@@ -435,9 +465,9 @@ export function TrimSection({
 
           <div className="options-grid">
             <div className="input-group">
-              <label htmlFor="trimOutputFormat">Output format</label>
+              <label htmlFor={outputFormatId}>Output format</label>
               <select
-                id="trimOutputFormat"
+                id={outputFormatId}
                 value={options.format}
                 onChange={(e) =>
                   updateOption('format', e.target.value as TrimOutputFormat)
@@ -488,7 +518,7 @@ export function TrimSection({
                     )}
                   </label>
                   <select
-                    id="trimBitrate"
+                    id={bitrateId}
                     value={options.bitrate}
                     onChange={(e) => updateOption('bitrate', e.target.value)}
                     disabled={disableBitrate}
@@ -522,9 +552,9 @@ export function TrimSection({
             {options.removeSilence && (
               <div className="options-grid silence-options">
                 <div className="input-group">
-                  <label htmlFor="silenceThreshold">Silence threshold</label>
+                  <label htmlFor={silenceThresholdId}>Silence threshold</label>
                   <select
-                    id="silenceThreshold"
+                    id={silenceThresholdId}
                     value={options.silenceThreshold}
                     onChange={(e) =>
                       updateOption('silenceThreshold', Number(e.target.value))
@@ -537,9 +567,11 @@ export function TrimSection({
                   </select>
                 </div>
                 <div className="input-group">
-                  <label htmlFor="silenceDuration">Min silence duration</label>
+                  <label htmlFor={silenceDurationId}>
+                    Min silence duration
+                  </label>
                   <select
-                    id="silenceDuration"
+                    id={silenceDurationId}
                     value={options.silenceDuration}
                     onChange={(e) =>
                       updateOption('silenceDuration', Number(e.target.value))

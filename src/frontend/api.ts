@@ -162,7 +162,7 @@ export async function retagMp3(
 ): Promise<ApiResult> {
   const input = new Uint8Array(await file.arrayBuffer());
   const finalFilename =
-    outputFilename ?? file.name.replace(/\.mp3$/i, '') + '_retagged.mp3';
+    outputFilename ?? `${file.name.replace(/\.mp3$/i, '')}_retagged.mp3`;
   const result = await retagMp3Lib(
     input,
     metadata,
@@ -238,7 +238,8 @@ export async function processAudioBatch(
   const usedNames = new Set<string>();
 
   for (let i = 0; i < files.length; i++) {
-    const file = files[i]!;
+    const file = files[i];
+    if (!file) continue;
     const input = new Uint8Array(await file.arrayBuffer());
 
     const noiseOpts: NoiseOptions = {
@@ -260,7 +261,7 @@ export async function processAudioBatch(
     };
 
     const result = await addNoiseAndConcat(input, noiseOpts, fileProgress);
-    const outputName = file.name.replace(/\.[^.]+$/, '') + '_noise.mp3';
+    const outputName = `${file.name.replace(/\.[^.]+$/, '')}_noise.mp3`;
     results.push({
       name: getUniqueFilename(outputName, usedNames),
       data: new Uint8Array(result.data),
@@ -296,7 +297,8 @@ export async function extractCoverBatch(
   const usedNames = new Set<string>();
 
   for (let i = 0; i < files.length; i++) {
-    const file = files[i]!;
+    const file = files[i];
+    if (!file) continue;
     const input = new Uint8Array(await file.arrayBuffer());
 
     const fileProgress: ProgressCallback = ({ percent }) => {
@@ -312,7 +314,7 @@ export async function extractCoverBatch(
 
     try {
       const result = await extractCoverLib(input, fileProgress);
-      const outputName = file.name.replace(/\.[^.]+$/, '') + '_cover.jpg';
+      const outputName = `${file.name.replace(/\.[^.]+$/, '')}_cover.jpg`;
       results.push({
         name: getUniqueFilename(outputName, usedNames),
         data: new Uint8Array(result.data),
@@ -357,7 +359,8 @@ export async function convertAudioBatch(
   const usedNames = new Set<string>();
 
   for (let i = 0; i < files.length; i++) {
-    const file = files[i]!;
+    const file = files[i];
+    if (!file) continue;
     const input = new Uint8Array(await file.arrayBuffer());
 
     const fileProgress: ProgressCallback = ({ percent }) => {

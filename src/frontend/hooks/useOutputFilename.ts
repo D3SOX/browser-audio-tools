@@ -45,7 +45,7 @@ export function useOutputFilename({
       }
     }
     if (operation === 'retag' && retagFile) {
-      return retagFile.name.replace(/\.mp3$/i, '') + '_retagged';
+      return `${retagFile.name.replace(/\.mp3$/i, '')}_retagged`;
     }
     return '';
   }, [operation, mp3SourceFile, retagFile, wavFile]);
@@ -79,14 +79,7 @@ export function useOutputFilename({
     if (useAutoFilename) return; // Let the auto-format effect handle it
 
     setOutputFilenameState(getDefaultFilename());
-  }, [
-    operation,
-    mp3SourceFile,
-    retagFile,
-    wavFile,
-    useAutoFilename,
-    getDefaultFilename,
-  ]);
+  }, [operation, useAutoFilename, getDefaultFilename]);
 
   // Setter that disables auto-format when manually editing
   // Also strips .mp3 extension if user types it (since it's shown as a fixed suffix)

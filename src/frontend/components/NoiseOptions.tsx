@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { NoiseType, ProcessOptions } from '../api';
 
 type NoiseOptionsProps = {
@@ -9,6 +10,12 @@ type NoiseOptionsProps = {
 };
 
 export function NoiseOptions({ options, onChange }: NoiseOptionsProps) {
+  const idBase = useId();
+  const durationId = `${idBase}-durationSeconds`;
+  const volumeId = `${idBase}-noiseVolume`;
+  const typeId = `${idBase}-noiseType`;
+  const bitrateId = `${idBase}-bitrate`;
+
   return (
     <section className="section">
       <h2 className="section-title">
@@ -17,9 +24,9 @@ export function NoiseOptions({ options, onChange }: NoiseOptionsProps) {
       </h2>
       <div className="options-grid">
         <div className="input-group">
-          <label htmlFor="durationSeconds">Noise duration (seconds)</label>
+          <label htmlFor={durationId}>Noise duration (seconds)</label>
           <input
-            id="durationSeconds"
+            id={durationId}
             type="number"
             min={1}
             value={options.durationSeconds}
@@ -29,9 +36,9 @@ export function NoiseOptions({ options, onChange }: NoiseOptionsProps) {
           />
         </div>
         <div className="input-group">
-          <label htmlFor="noiseVolume">Noise volume (0 - 1.0)</label>
+          <label htmlFor={volumeId}>Noise volume (0 - 1.0)</label>
           <input
-            id="noiseVolume"
+            id={volumeId}
             type="number"
             min={0}
             max={1}
@@ -43,9 +50,9 @@ export function NoiseOptions({ options, onChange }: NoiseOptionsProps) {
           />
         </div>
         <div className="input-group">
-          <label htmlFor="noiseType">Noise type</label>
+          <label htmlFor={typeId}>Noise type</label>
           <select
-            id="noiseType"
+            id={typeId}
             value={options.noiseType}
             onChange={(e) => onChange('noiseType', e.target.value as NoiseType)}
           >
@@ -54,9 +61,9 @@ export function NoiseOptions({ options, onChange }: NoiseOptionsProps) {
           </select>
         </div>
         <div className="input-group">
-          <label htmlFor="bitrate">Output bitrate</label>
+          <label htmlFor={bitrateId}>Output bitrate</label>
           <input
-            id="bitrate"
+            id={bitrateId}
             type="text"
             value={options.bitrate}
             onChange={(e) => onChange('bitrate', e.target.value)}

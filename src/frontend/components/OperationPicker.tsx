@@ -29,7 +29,9 @@ export function OperationPicker({ operation, onChange }: OperationPickerProps) {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
             >
+              <title>Noise waveform</title>
               <path d="M2 10s3-3 5-3 5 5 5 5 3-3 5-3 5 3 5 3" />
               <path d="M2 14s3 3 5 3 5-5 5-5 3 3 5 3 5-3 5-3" />
             </svg>
@@ -52,7 +54,9 @@ export function OperationPicker({ operation, onChange }: OperationPickerProps) {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
             >
+              <title>Cover art frame</title>
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <circle cx="8.5" cy="8.5" r="1.5" />
               <path d="M21 15l-5-5L5 21" />
@@ -76,7 +80,9 @@ export function OperationPicker({ operation, onChange }: OperationPickerProps) {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
             >
+              <title>WAV to MP3</title>
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14,2 14,8 20,8" />
               <path d="M9 15l2 2 4-4" />
@@ -100,7 +106,9 @@ export function OperationPicker({ operation, onChange }: OperationPickerProps) {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
             >
+              <title>Convert audio</title>
               <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
             </svg>
           </div>
@@ -122,7 +130,9 @@ export function OperationPicker({ operation, onChange }: OperationPickerProps) {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
             >
+              <title>Retag MP3</title>
               <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
               <line x1="7" y1="7" x2="7.01" y2="7" />
             </svg>
@@ -145,7 +155,9 @@ export function OperationPicker({ operation, onChange }: OperationPickerProps) {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
             >
+              <title>Trim audio</title>
               <path d="M6 4v16" />
               <path d="M18 4v16" />
               <path d="M6 12h12" />
@@ -171,7 +183,9 @@ export function OperationPicker({ operation, onChange }: OperationPickerProps) {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
             >
+              <title>Visualizer</title>
               <path d="M2 10s3-3 5-3 5 5 5 5 3-3 5-3 5 3 5 3" />
               <path d="M2 14s3 3 5 3 5-5 5-5 3 3 5 3 5-3 5-3" />
               <rect x="1" y="5" width="22" height="14" rx="2" />

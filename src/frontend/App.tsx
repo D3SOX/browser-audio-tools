@@ -3,7 +3,6 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
-  ApiResult,
   BatchProgressCallback,
   GenericConvertOptions,
   ID3Metadata,
@@ -249,7 +248,7 @@ export default function App() {
     if (!getOperationFromHash()) {
       window.history.replaceState(null, '', `#${operation}`);
     }
-  }, []);
+  }, [operation]);
 
   const replaceOperationResult = useCallback(
     (op: Operation, nextResult: OperationResult) => {
@@ -269,9 +268,9 @@ export default function App() {
           URL.revokeObjectURL(prevResult.previewUrl);
         }
         if (prevResult?.batchPreviews) {
-          prevResult.batchPreviews.forEach((item) =>
-            URL.revokeObjectURL(item.url),
-          );
+          prevResult.batchPreviews.forEach((item) => {
+            URL.revokeObjectURL(item.url);
+          });
         }
         return { ...prev, [op]: nextResult };
       });
@@ -648,7 +647,7 @@ export default function App() {
       e.preventDefault();
       setDragOverTrim(false);
       const droppedFile = e.dataTransfer.files?.[0];
-      if (droppedFile && droppedFile.type.startsWith('audio/')) {
+      if (droppedFile?.type.startsWith('audio/')) {
         handleTrimFileSelect(droppedFile);
       }
     },
@@ -668,7 +667,7 @@ export default function App() {
       e.preventDefault();
       setDragOverVisualizer(false);
       const droppedFile = e.dataTransfer.files?.[0];
-      if (droppedFile && droppedFile.type.startsWith('audio/')) {
+      if (droppedFile?.type.startsWith('audio/')) {
         handleVisualizerFileSelect(droppedFile);
       }
     },
@@ -721,7 +720,9 @@ export default function App() {
 
   const handleReset = useCallback(() => {
     if (batchPreviews) {
-      batchPreviews.forEach((item) => URL.revokeObjectURL(item.url));
+      batchPreviews.forEach((item) => {
+        URL.revokeObjectURL(item.url);
+      });
     }
     setFiles([]);
     setWavFile(null);
@@ -774,6 +775,7 @@ export default function App() {
     convertCoverPreviewUrl,
     retagCoverPreviewUrl,
     retagDonorCoverPreviewUrl,
+    resetOutputFilename,
   ]);
 
   const submit = async () => {
@@ -856,7 +858,11 @@ export default function App() {
     try {
       if (activeOperation === 'noise') {
         if (files.length === 1) {
-          const result = await processAudio(files[0]!, options, onProgress);
+          const [singleFile] = files;
+          if (!singleFile) {
+            throw new Error('No file selected for noise processing.');
+          }
+          const result = await processAudio(singleFile, options, onProgress);
           const url = URL.createObjectURL(result.blob);
           replaceOperationResult(activeOperation, {
             status: 'Noise added and concatenated. Ready to download.',
@@ -893,7 +899,11 @@ export default function App() {
         }
       } else if (activeOperation === 'cover') {
         if (files.length === 1) {
-          const result = await extractCover(files[0]!, onProgress);
+          const [singleFile] = files;
+          if (!singleFile) {
+            throw new Error('No file selected for cover extraction.');
+          }
+          const result = await extractCover(singleFile, onProgress);
           const url = URL.createObjectURL(result.blob);
           replaceOperationResult(activeOperation, {
             status: 'Cover extracted. Ready to download.',
@@ -925,15 +935,18 @@ export default function App() {
           });
         }
       } else if (activeOperation === 'retag-wav') {
+        if (!wavFile) {
+          throw new Error('No WAV file provided for retagging.');
+        }
         // Use custom filename if provided, otherwise fall back to default base name
         const defaultBase = mp3SourceFile
           ? mp3SourceFile.name.replace(/\.mp3$/i, '')
-          : wavFile!.name.replace(/\.wav$/i, '');
+          : wavFile.name.replace(/\.wav$/i, '');
         const baseFilename = outputFilename.trim() || defaultBase;
         // Always append .mp3 extension (outputFilename stores base name only)
         const finalName = `${baseFilename}.mp3`;
         const result = await convertWavToMp3(
-          wavFile!,
+          wavFile,
           mp3SourceFile,
           metadata,
           finalName,
@@ -962,8 +975,12 @@ export default function App() {
           : genericConvertOptions.bitrate;
 
         if (genericConvertFiles.length === 1) {
+          const [singleFile] = genericConvertFiles;
+          if (!singleFile) {
+            throw new Error('No file selected for conversion.');
+          }
           const result = await convertAudio(
-            genericConvertFiles[0]!,
+            singleFile,
             genericConvertOptions,
             undefined,
             onProgress,
@@ -1003,14 +1020,16 @@ export default function App() {
           });
         }
       } else if (activeOperation === 'retag') {
+        if (!retagFile) {
+          throw new Error('No MP3 selected for retagging.');
+        }
         // Use custom filename if provided, otherwise fall back to default base name
-        const defaultBase =
-          retagFile!.name.replace(/\.mp3$/i, '') + '_retagged';
+        const defaultBase = `${retagFile.name.replace(/\.mp3$/i, '')}_retagged`;
         const baseFilename = outputFilename.trim() || defaultBase;
         // Always append .mp3 extension (outputFilename stores base name only)
         const finalName = `${baseFilename}.mp3`;
         const result = await retagMp3(
-          retagFile!,
+          retagFile,
           retagMetadata,
           onProgress,
           retagCover ?? undefined,
@@ -1028,7 +1047,10 @@ export default function App() {
           processing: false,
         });
       } else if (activeOperation === 'trim') {
-        const result = await trimAudio(trimFile!, trimOptions, onProgress);
+        if (!trimFile) {
+          throw new Error('No file selected for trimming.');
+        }
+        const result = await trimAudio(trimFile, trimOptions, onProgress);
         const url = URL.createObjectURL(result.blob);
         const resultExt = result.filename.split('.').pop();
         const formatLabel = resultExt
