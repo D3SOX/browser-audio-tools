@@ -76,7 +76,9 @@ export function AnalyticsConsentModal({
               Heads-up for AdBlock/uBlock Origin users
             </p>
             <p className="consent-modal-warning-text">
-              We think that you are using an adblocker that will block these calls. If you want to allow analytics, you will need to disable your adblocker (or add an allowlist rule) for this site.
+              We think that you are using an adblocker that will block these
+              calls. If you want to allow analytics, you will need to disable
+              your adblocker (or add an allowlist rule) for this site.
             </p>
           </div>
         )}

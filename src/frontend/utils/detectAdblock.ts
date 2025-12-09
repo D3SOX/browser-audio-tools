@@ -13,9 +13,9 @@ type DetectOptions = {
  * Heuristically detects whether an adblocker cancels analytics requests.
  * Treats failures/timeouts as blocked to err on the safe side.
  */
-export async function detectAdblock(
-  { timeoutMs = 1200 }: DetectOptions = {},
-): Promise<AdblockDetectionResult> {
+export async function detectAdblock({
+  timeoutMs = 1200,
+}: DetectOptions = {}): Promise<AdblockDetectionResult> {
   if (typeof window === 'undefined' || typeof fetch === 'undefined') {
     return 'unknown';
   }
@@ -42,4 +42,3 @@ export async function detectAdblock(
     return 'blocked';
   }
 }
-

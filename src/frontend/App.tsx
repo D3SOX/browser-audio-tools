@@ -26,10 +26,12 @@ import { useAnalyticsConsent } from './hooks/useAnalyticsConsent';
 import { useOutputFilename } from './hooks/useOutputFilename';
 import './styles.css';
 import {
-  detectAdblock,
   type AdblockDetectionResult,
+  detectAdblock,
 } from './utils/detectAdblock';
+
 type TrackFn = (event: string, properties?: Record<string, unknown>) => void;
+
 import { ActionsSection } from './components/ActionsSection';
 import { AudioFilePicker } from './components/AudioFilePicker';
 import { ConvertSection } from './components/ConvertSection';
@@ -286,17 +288,25 @@ export default function App() {
         if (!cancelled) setAdblockStatus(status);
         if (!cancelled) {
           // Expose for quick inspection in devtools.
-          (window as typeof window & { __ADBLOCK_STATUS__?: AdblockDetectionResult }).__ADBLOCK_STATUS__ =
-            status;
+          (
+            window as typeof window & {
+              __ADBLOCK_STATUS__?: AdblockDetectionResult;
+            }
+          ).__ADBLOCK_STATUS__ = status;
           console.info('[analytics] Adblock detection result:', status);
         }
       })
       .catch(() => {
         if (!cancelled) setAdblockStatus('blocked');
         if (!cancelled) {
-          (window as typeof window & { __ADBLOCK_STATUS__?: AdblockDetectionResult }).__ADBLOCK_STATUS__ =
-            'blocked';
-          console.warn('[analytics] Adblock detection failed, treating as blocked');
+          (
+            window as typeof window & {
+              __ADBLOCK_STATUS__?: AdblockDetectionResult;
+            }
+          ).__ADBLOCK_STATUS__ = 'blocked';
+          console.warn(
+            '[analytics] Adblock detection failed, treating as blocked',
+          );
         }
       });
 
@@ -1232,11 +1242,11 @@ export default function App() {
         consent === true &&
         AnalyticsComponent &&
         SpeedInsightsComponent && (
-        <>
-          <SpeedInsightsComponent />
-          <AnalyticsComponent />
-        </>
-      )}
+          <>
+            <SpeedInsightsComponent />
+            <AnalyticsComponent />
+          </>
+        )}
       {hydrated && consent === null && (
         <AnalyticsConsentModal
           adblockStatus={adblockStatus}
