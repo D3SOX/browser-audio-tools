@@ -49,7 +49,7 @@ export function AudioFilePicker({
       >
         <input
           type="file"
-          accept="audio/*"
+          accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.m4a,.aac,.opus"
           multiple
           onChange={onChange}
           className="file-input-hidden"
