@@ -1,9 +1,18 @@
+import type { AdblockDetectionResult } from '../utils/detectAdblock';
+
 type Props = {
   analyticsEnabled: boolean;
+  adblockStatus: AdblockDetectionResult;
   onToggleAnalytics: () => void;
 };
 
-export function Footer({ analyticsEnabled, onToggleAnalytics }: Props) {
+export function Footer({
+  analyticsEnabled,
+  adblockStatus,
+  onToggleAnalytics,
+}: Props) {
+  const showAdblockWarning = analyticsEnabled && adblockStatus === 'blocked';
+
   return (
     <footer className="card-footer">
       <p className="footer-hint">
@@ -34,6 +43,16 @@ export function Footer({ analyticsEnabled, onToggleAnalytics }: Props) {
         >
           {analyticsEnabled ? 'On' : 'Off'}
         </button>
+        {showAdblockWarning && (
+          <span
+            className="tooltip-icon tooltip-icon-active tooltip-icon-warning"
+            data-tooltip="Adblocker detected — analytics likely won't load."
+            aria-label="Adblocker detected — analytics likely won't load."
+            role="tooltip"
+          >
+            !
+          </span>
+        )}
       </div>
     </footer>
   );

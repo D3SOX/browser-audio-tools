@@ -1500,6 +1500,7 @@ export default function App() {
 
         <Footer
           analyticsEnabled={consent === true}
+          adblockStatus={adblockStatus}
           onToggleAnalytics={() => setConsent(consent !== true)}
         />
       </main>

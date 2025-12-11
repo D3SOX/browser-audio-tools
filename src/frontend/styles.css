@@ -749,7 +749,14 @@ select:disabled {
   font-weight: 700;
   opacity: 0;
   pointer-events: none;
+  user-select: none;
+  cursor: default;
   transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.tooltip-icon-warning {
+  background: #fecaca;
+  color: #b91c1c;
 }
 
 .tooltip-icon-active {
