@@ -59,6 +59,7 @@ export function RetagWavSection({
   const albumInputId = useId();
   const yearInputId = useId();
   const trackInputId = useId();
+  const genreInputId = useId();
   const wavInputRef = useRef<HTMLInputElement>(null);
   const mp3InputRef = useRef<HTMLInputElement>(null);
   const handleWavChange = (e: ChangeEvent<HTMLInputElement>) =>
@@ -292,6 +293,18 @@ export function RetagWavSection({
                 value={metadata.track ?? ''}
                 onChange={(e) => onMetadataChange('track', e.target.value)}
                 placeholder="e.g. 1"
+              />
+            </div>
+            <div className="input-group">
+              <label htmlFor={genreInputId}>
+                Genre <span className="optional-label">(optional)</span>
+              </label>
+              <input
+                id={genreInputId}
+                type="text"
+                value={metadata.genre ?? ''}
+                onChange={(e) => onMetadataChange('genre', e.target.value)}
+                placeholder="e.g. House"
               />
             </div>
           </div>

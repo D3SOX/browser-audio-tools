@@ -70,6 +70,7 @@ const defaultMetadata: ID3Metadata = {
   album: '',
   year: '',
   track: '',
+  genre: '',
 };
 
 const defaultOptions: ProcessOptions = {
@@ -750,6 +751,9 @@ export default function App() {
         }
         if (fieldsToImport.has('track') && retagDonorMetadata.track) {
           next.track = retagDonorMetadata.track;
+        }
+        if (fieldsToImport.has('genre') && retagDonorMetadata.genre) {
+          next.genre = retagDonorMetadata.genre;
         }
         return next;
       });

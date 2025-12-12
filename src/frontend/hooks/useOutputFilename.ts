@@ -28,6 +28,7 @@ export function useOutputFilename({
     const title = meta.title.trim();
     if (artist && title) {
       // Sanitize filename (remove characters not allowed in filenames)
+      // To grant compat with all operating systems (namely Windows) have to include e.g. ? what would otherwise be valid in a filename
       const sanitize = (s: string) => s.replace(/[<>:"/\\|?*]/g, '_');
       return `${sanitize(artist)} - ${sanitize(title)}`;
     }

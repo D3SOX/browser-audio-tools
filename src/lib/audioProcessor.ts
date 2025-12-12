@@ -284,6 +284,7 @@ export interface ID3Metadata {
   album: string;
   year?: string;
   track?: string;
+  genre?: string;
 }
 
 export async function readMetadata(
@@ -317,6 +318,7 @@ export async function readMetadata(
       album: '',
       year: '',
       track: '',
+      genre: '',
     };
 
     for (const line of text.split('\n')) {
@@ -329,6 +331,7 @@ export async function readMetadata(
       else if (key === 'album') metadata.album = value;
       else if (key === 'date' || key === 'year') metadata.year = value;
       else if (key === 'track') metadata.track = value;
+      else if (key === 'genre') metadata.genre = value;
     }
 
     return metadata;
@@ -407,6 +410,9 @@ export async function retagMp3(
   if (metadata.track) {
     args.push('-metadata', `track=${metadata.track}`);
   }
+  if (metadata.genre) {
+    args.push('-metadata', `genre=${metadata.genre}`);
+  }
 
   args.push('-y', outName);
 
@@ -436,6 +442,7 @@ export interface ConvertOptions {
   album?: string;
   year?: string;
   track?: string;
+  genre?: string;
 }
 
 // Generic converter types (AAC removed due to wasm encoder issues)
@@ -936,6 +943,9 @@ export async function convertWavToMp3WithMetadata(
   }
   if (options.track !== undefined) {
     args.push('-metadata', `track=${options.track}`);
+  }
+  if (options.genre !== undefined) {
+    args.push('-metadata', `genre=${options.genre}`);
   }
 
   args.push('-y', outName);

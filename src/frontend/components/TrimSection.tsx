@@ -105,9 +105,7 @@ export function TrimSection({
 
   // Update WaveSurfer volume when volume state changes
   useEffect(() => {
-    if (wavesurferRef.current) {
-      wavesurferRef.current.setVolume(volume);
-    }
+    wavesurferRef.current?.setVolume(volume);
   }, [volume]);
 
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {

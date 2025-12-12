@@ -53,7 +53,14 @@ type RetagSectionProps = {
   onImportFields: (fields: Set<string>) => void;
 };
 
-type MetadataField = 'title' | 'artist' | 'album' | 'year' | 'track' | 'cover';
+type MetadataField =
+  | 'title'
+  | 'artist'
+  | 'album'
+  | 'year'
+  | 'track'
+  | 'genre'
+  | 'cover';
 
 const FIELD_LABELS: Record<MetadataField, string> = {
   title: 'Title',
@@ -61,6 +68,7 @@ const FIELD_LABELS: Record<MetadataField, string> = {
   album: 'Album',
   year: 'Year',
   track: 'Track #',
+  genre: 'Genre',
   cover: 'Cover Art',
 };
 
@@ -95,6 +103,7 @@ export function RetagSection({
   const retagAlbumId = useId();
   const retagYearId = useId();
   const retagTrackId = useId();
+  const retagGenreId = useId();
   const retagInputRef = useRef<HTMLInputElement>(null);
   const donorInputRef = useRef<HTMLInputElement>(null);
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) =>
@@ -115,7 +124,7 @@ export function RetagSection({
 
   // Track which fields the user wants to import from donor
   const [selectedFields, setSelectedFields] = useState<Set<MetadataField>>(
-    new Set(['title', 'artist', 'album', 'year', 'track', 'cover']),
+    new Set(['title', 'artist', 'album', 'year', 'track', 'genre', 'cover']),
   );
 
   const toggleField = (field: MetadataField) => {
@@ -146,6 +155,7 @@ export function RetagSection({
     'album',
     'year',
     'track',
+    'genre',
     'cover',
   ];
   const hasAnyDonorData =
@@ -155,6 +165,7 @@ export function RetagSection({
       donorMetadata.album ||
       donorMetadata.year ||
       donorMetadata.track ||
+      donorMetadata.genre ||
       donorCoverPreviewUrl);
 
   return (
@@ -429,6 +440,19 @@ export function RetagSection({
                 value={metadata.track ?? ''}
                 onChange={(e) => onMetadataChange('track', e.target.value)}
                 placeholder="e.g. 1"
+              />
+            </div>
+            <div className="input-group">
+              <label htmlFor={retagGenreId}>
+                {FIELD_LABELS.genre}{' '}
+                <span className="optional-label">(optional)</span>
+              </label>
+              <input
+                id={retagGenreId}
+                type="text"
+                value={metadata.genre ?? ''}
+                onChange={(e) => onMetadataChange('genre', e.target.value)}
+                placeholder="e.g. House"
               />
             </div>
           </div>
