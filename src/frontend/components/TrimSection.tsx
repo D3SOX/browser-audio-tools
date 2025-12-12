@@ -84,6 +84,7 @@ export function TrimSection({
   const bitrateId = useId();
   const silenceThresholdId = useId();
   const silenceDurationId = useId();
+  const volumeId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -95,11 +96,19 @@ export function TrimSection({
   const [isLoading, setIsLoading] = useState(false);
   const [startTimeInput, setStartTimeInput] = useState('0:00.00');
   const [endTimeInput, setEndTimeInput] = useState('0:00.00');
+  const [volume, setVolume] = useState(1.0);
 
   // Keep options ref in sync
   useEffect(() => {
     optionsRef.current = options;
   }, [options]);
+
+  // Update WaveSurfer volume when volume state changes
+  useEffect(() => {
+    if (wavesurferRef.current) {
+      wavesurferRef.current.setVolume(volume);
+    }
+  }, [volume]);
 
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onFileChange(e.target.files?.[0] ?? null);
@@ -451,6 +460,20 @@ export function TrimSection({
               >
                 Select all
               </button>
+              <div className="slider-group">
+                <label htmlFor={volumeId}>
+                  Volume: {Math.round(volume * 100)}%
+                </label>
+                <input
+                  type="range"
+                  id={volumeId}
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={volume}
+                  onChange={(e) => setVolume(Number(e.target.value))}
+                />
+              </div>
             </div>
 
             <div className="trim-current-time">
