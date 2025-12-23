@@ -18,9 +18,9 @@ export interface ProcessResult {
   mime: string;
 }
 
-const CORE_VERSION = '0.12.10';
-const CORE_MT_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@${CORE_VERSION}/dist/esm`;
-const CORE_SINGLE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/esm`;
+// ffmpeg core assets are self-hosted in /ffmpeg-core and /ffmpeg-core-mt for offline PWA support
+const CORE_MT_BASE_URL = '/ffmpeg-core-mt';
+const CORE_SINGLE_BASE_URL = '/ffmpeg-core';
 
 let ffmpeg: FFmpeg | null = null;
 let loadPromise: Promise<void> | null = null;
@@ -64,7 +64,7 @@ function translateFFmpegLoadError(error: unknown): Error {
   );
 }
 
-async function ensureFFmpegLoaded(): Promise<FFmpeg> {
+export async function ensureFFmpegLoaded(): Promise<FFmpeg> {
   if (ffmpeg?.loaded) return ffmpeg;
 
   if (!loadPromise) {
@@ -73,10 +73,10 @@ async function ensureFFmpegLoaded(): Promise<FFmpeg> {
         const { baseURL: coreBaseURL, reason } = selectCoreBaseURL();
         if (!coreSelectionLogged) {
           console.info('[ffmpeg] core selection', {
-            version: CORE_VERSION,
             core: coreBaseURL.includes('core-mt')
               ? 'core-mt (multi-threaded)'
               : 'core (single-threaded)',
+            baseURL: coreBaseURL,
             reason,
           });
           coreSelectionLogged = true;

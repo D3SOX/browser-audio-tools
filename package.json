@@ -20,9 +20,13 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "astro": "^5.16.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite-plugin-static-copy": "^2.3.0"
   },
   "dependencies": {
+    "@astrojs/check": "^0.9.6",
+    "@ffmpeg/core": "0.12.10",
+    "@ffmpeg/core-mt": "0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@vercel/analytics": "^1.6.1",

@@ -1,3 +1,4 @@
+import { usePWAStatus } from '../hooks/usePWAStatus';
 import type { AdblockDetectionResult } from '../utils/detectAdblock';
 
 type Props = {
@@ -12,12 +13,25 @@ export function Footer({
   onToggleAnalytics,
 }: Props) {
   const showAdblockWarning = analyticsEnabled && adblockStatus === 'blocked';
+  const { isOffline, canWorkOffline, isInstalled } = usePWAStatus();
 
   return (
     <footer className="card-footer">
       <p className="footer-hint">
         Runs entirely in your browser via ffmpeg.wasm. Files never leave your
         device.
+        {canWorkOffline && (
+          <span
+            className="pwa-status-badge"
+            title={
+              isInstalled
+                ? 'App is installed and works offline'
+                : 'App is cached and works offline'
+            }
+          >
+            {isOffline ? ' (offline)' : ' (offline ready)'}
+          </span>
+        )}
       </p>
       <p className="footer-hint footer-hint--spaced">
         Need broader file conversions? Try{' '}

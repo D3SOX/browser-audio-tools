@@ -3,6 +3,7 @@ import react from '@astrojs/react';
 import vercel from '@astrojs/vercel';
 import { defineConfig } from 'astro/config';
 import type { Connect, Plugin, ViteDevServer } from 'vite';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 const coiHeaders = {
   'Cross-Origin-Opener-Policy': 'same-origin',
@@ -38,7 +39,23 @@ export default defineConfig({
   adapter: vercel({}),
   integrations: [react()],
   vite: {
-    plugins: [coiHeadersPlugin()],
+    plugins: [
+      coiHeadersPlugin(),
+      viteStaticCopy({
+        targets: [
+          // Single-threaded ffmpeg core
+          {
+            src: 'node_modules/@ffmpeg/core/dist/esm/*',
+            dest: 'ffmpeg-core',
+          },
+          // Multi-threaded ffmpeg core
+          {
+            src: 'node_modules/@ffmpeg/core-mt/dist/esm/*',
+            dest: 'ffmpeg-core-mt',
+          },
+        ],
+      }),
+    ],
     optimizeDeps: {
       exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
     },

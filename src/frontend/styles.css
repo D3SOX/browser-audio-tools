@@ -1065,6 +1065,18 @@ select:disabled {
   color: var(--text-secondary);
 }
 
+/* ===== PWA Status Badge ===== */
+.pwa-status-badge {
+  display: inline-block;
+  color: var(--success-text, #059669);
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+
+[data-theme='dark'] .pwa-status-badge {
+  color: var(--success-text, #34d399);
+}
+
 /* ===== Retag Cover Art ===== */
 .retag-metadata-layout {
   display: flex;

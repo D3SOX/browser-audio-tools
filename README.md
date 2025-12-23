@@ -34,6 +34,17 @@ This is a fully static site (no serverless functions needed):
 3. Processing happens locally in a Web Worker
 4. You download the result directly — nothing leaves your machine
 
+## PWA & Offline Support
+
+This app is an installable Progressive Web App (PWA) that works fully offline:
+
+- **Install it**: On supported browsers, you'll see an "Install" option in the browser's address bar or menu
+- **Works offline**: After visiting once, the app and ffmpeg engine are cached locally. You can use it without an internet connection
+- **Self-hosted ffmpeg**: The ffmpeg.wasm core files (~30 MB) are bundled with the app, not loaded from external CDNs, ensuring reliable offline operation
+- **Offline indicator**: The footer shows "(offline ready)" when the service worker is active
+
+Note: The first visit requires an internet connection to download and cache all assets. Subsequent visits work fully offline.
+
 ## Features
 
 - **Add Noise + Concat**: Prepends pink or white noise to your track
@@ -85,7 +96,9 @@ This is a fully static site (no serverless functions needed):
 
 ## Implementation notes
 
-- Uses `@ffmpeg/ffmpeg` with the multi-threaded `@ffmpeg/core-mt@0.12.10` loaded from jsdelivr CDN for faster, parallelized processing in the worker
+- Uses `@ffmpeg/ffmpeg` with self-hosted `@ffmpeg/core-mt@0.12.10` for faster, parallelized processing (falls back to single-threaded core when SharedArrayBuffer is unavailable)
+- ffmpeg core assets are copied to `/ffmpeg-core/` and `/ffmpeg-core-mt/` at build time via `vite-plugin-static-copy`
+- Service worker (`public/sw.js`) precaches the app shell and ffmpeg assets for offline use
 - Noise pipeline: `anoisesrc` → optional `highpass/lowpass` for pink → `concat` with the uploaded track
 - Cover extraction maps the embedded image stream with `-an -vcodec copy`
 - No file size limits since everything runs client-side
