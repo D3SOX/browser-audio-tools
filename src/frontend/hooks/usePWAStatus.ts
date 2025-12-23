@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { preloadFFmpegCore } from '../../lib/audioProcessor';
 
 export type PWAStatus = {
   /** Whether the app is currently offline */
@@ -9,10 +10,16 @@ export type PWAStatus = {
   isInstalled: boolean;
   /** Whether the app can work offline (SW active) */
   canWorkOffline: boolean;
+  /** Whether ffmpeg core has been preloaded into cache */
+  isFFmpegCached: boolean;
 };
+
+// Track if we've already triggered preload (singleton across hook instances)
+let preloadTriggered = false;
 
 /**
  * Hook to detect PWA installation status, offline mode, and service worker readiness.
+ * Also triggers ffmpeg core preload when service worker is ready.
  */
 export function usePWAStatus(): PWAStatus {
   const [isOffline, setIsOffline] = useState(
@@ -20,6 +27,7 @@ export function usePWAStatus(): PWAStatus {
   );
   const [isServiceWorkerActive, setIsServiceWorkerActive] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isFFmpegCached, setIsFFmpegCached] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -39,11 +47,27 @@ export function usePWAStatus(): PWAStatus {
     const handleDisplayModeChange = () => checkInstalled();
     mediaQuery.addEventListener('change', handleDisplayModeChange);
 
-    // Check service worker status
+    // Preload ffmpeg core when SW is ready
+    const triggerPreload = () => {
+      if (preloadTriggered) return;
+      preloadTriggered = true;
+      preloadFFmpegCore()
+        .then(() => setIsFFmpegCached(true))
+        .catch(() => {
+          // Reset so it can retry
+          preloadTriggered = false;
+        });
+    };
+
+    // Check service worker status and trigger preload
     const checkServiceWorker = async () => {
       if ('serviceWorker' in navigator) {
         const registration = await navigator.serviceWorker.getRegistration();
-        setIsServiceWorkerActive(registration?.active !== undefined);
+        const isActive = registration?.active !== undefined;
+        setIsServiceWorkerActive(isActive);
+        if (isActive && navigator.serviceWorker.controller) {
+          triggerPreload();
+        }
       }
     };
     checkServiceWorker();
@@ -52,6 +76,7 @@ export function usePWAStatus(): PWAStatus {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then(() => {
         setIsServiceWorkerActive(true);
+        triggerPreload();
       });
     }
 
@@ -68,13 +93,14 @@ export function usePWAStatus(): PWAStatus {
     };
   }, []);
 
-  const canWorkOffline = isServiceWorkerActive;
+  const canWorkOffline = isServiceWorkerActive && isFFmpegCached;
 
   return {
     isOffline,
     isServiceWorkerActive,
     isInstalled,
     canWorkOffline,
+    isFFmpegCached,
   };
 }
 

@@ -1,7 +1,7 @@
 // Service Worker for Browser Audio Tools PWA
 // Provides offline support by caching the app shell and ffmpeg core assets
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `browser-audio-tools-${CACHE_VERSION}`;
 
 // Core assets to precache - the app shell and ffmpeg core files

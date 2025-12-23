@@ -26,7 +26,11 @@ let ffmpeg: FFmpeg | null = null;
 let loadPromise: Promise<void> | null = null;
 let coreSelectionLogged = false;
 
-function selectCoreBaseURL(): { baseURL: string; reason: string } {
+export function selectCoreBaseURL(): {
+  baseURL: string;
+  reason: string;
+  isMultiThreaded: boolean;
+} {
   const missing: string[] = [];
   if (typeof SharedArrayBuffer === 'undefined') {
     missing.push('SharedArrayBuffer');
@@ -44,13 +48,49 @@ function selectCoreBaseURL(): { baseURL: string; reason: string } {
       baseURL: CORE_MT_BASE_URL,
       reason:
         'Using multi-threaded core: crossOriginIsolated with SAB/Atomics available.',
+      isMultiThreaded: true,
     };
   }
 
   return {
     baseURL: CORE_SINGLE_BASE_URL,
     reason: `Falling back to single-threaded core: missing ${missing.join(', ')}.`,
+    isMultiThreaded: false,
   };
+}
+
+/**
+ * Preload ffmpeg core files into cache for offline use.
+ * Call this on page load to ensure ffmpeg works offline.
+ */
+export async function preloadFFmpegCore(): Promise<void> {
+  const { baseURL, isMultiThreaded } = selectCoreBaseURL();
+  const files = isMultiThreaded
+    ? ['ffmpeg-core.js', 'ffmpeg-core.wasm', 'ffmpeg-core.worker.js']
+    : ['ffmpeg-core.js', 'ffmpeg-core.wasm'];
+
+  console.info('[ffmpeg] Preloading core from:', baseURL);
+
+  await Promise.all(
+    files.map((file) =>
+      fetch(`${baseURL}/${file}`)
+        .then((res) => {
+          if (res.ok) {
+            console.info('[ffmpeg] Cached:', `${baseURL}/${file}`);
+          }
+          return res;
+        })
+        .catch((err) => {
+          console.warn(
+            '[ffmpeg] Failed to preload:',
+            `${baseURL}/${file}`,
+            err,
+          );
+        }),
+    ),
+  );
+
+  console.info('[ffmpeg] Core preload complete');
 }
 
 function translateFFmpegLoadError(error: unknown): Error {
