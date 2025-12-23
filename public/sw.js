@@ -1,7 +1,7 @@
 // Service Worker for Browser Audio Tools PWA
 // Provides offline support by caching the app shell and ffmpeg core assets
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `browser-audio-tools-${CACHE_VERSION}`;
 
 // Core assets to precache - the app shell and ffmpeg core files
@@ -83,29 +83,56 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
+          console.info('[SW] Serving from cache:', url.pathname);
           return cachedResponse;
         }
-        return fetch(event.request).then((response) => {
-          // Cache the response for future use
-          if (response.ok) {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return response;
-        });
+        console.info('[SW] Fetching ffmpeg asset:', url.pathname);
+        return fetch(event.request)
+          .then((response) => {
+            // Cache the response for future use
+            if (response.ok) {
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+            }
+            return response;
+          })
+          .catch((err) => {
+            console.error(
+              '[SW] Failed to fetch ffmpeg asset:',
+              url.pathname,
+              err,
+            );
+            throw err;
+          });
       }),
     );
     return;
   }
 
-  // For app shell and other static assets, use stale-while-revalidate
+  // For app shell and other static assets, use cache-first with network fallback
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
+      if (cachedResponse) {
+        // Return cached response, but also update cache in background
+        fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse.ok) {
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, networkResponse);
+              });
+            }
+          })
+          .catch(() => {
+            // Network failed, that's fine - we have cache
+          });
+        return cachedResponse;
+      }
+
+      // No cache, must fetch from network
+      return fetch(event.request)
         .then((networkResponse) => {
-          // Update cache with fresh response
           if (networkResponse.ok) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -114,13 +141,14 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => {
-          // Network failed, return cached response if available
-          return cachedResponse;
+        .catch((err) => {
+          console.error(
+            '[SW] Network request failed and no cache:',
+            url.pathname,
+            err,
+          );
+          throw err;
         });
-
-      // Return cached response immediately, or wait for network
-      return cachedResponse || fetchPromise;
     }),
   );
 });

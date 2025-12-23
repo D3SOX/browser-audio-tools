@@ -93,10 +93,14 @@ export async function ensureFFmpegLoaded(): Promise<FFmpeg> {
           `${coreBaseURL}/ffmpeg-core.wasm`,
           'application/wasm',
         );
-        const workerURL = await toBlobURL(
-          `${coreBaseURL}/ffmpeg-core.worker.js`,
-          'text/javascript',
-        );
+        // Only multi-threaded core has a worker file
+        const isMultiThreaded = coreBaseURL.includes('core-mt');
+        const workerURL = isMultiThreaded
+          ? await toBlobURL(
+              `${coreBaseURL}/ffmpeg-core.worker.js`,
+              'text/javascript',
+            )
+          : undefined;
         await ffmpeg.load({ coreURL, wasmURL, workerURL });
       } catch (error) {
         ffmpeg = null;
