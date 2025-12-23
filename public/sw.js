@@ -31,7 +31,7 @@ self.addEventListener('install', (event) => {
         console.warn('[SW] Some assets failed to precache:', err);
         // Continue even if some assets fail - they'll be cached on first use
       });
-    })
+    }),
   );
   // Take control immediately
   self.skipWaiting();
@@ -44,13 +44,16 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name.startsWith('browser-audio-tools-') && name !== CACHE_NAME)
+          .filter(
+            (name) =>
+              name.startsWith('browser-audio-tools-') && name !== CACHE_NAME,
+          )
           .map((name) => {
             console.info('[SW] Deleting old cache:', name);
             return caches.delete(name);
-          })
+          }),
       );
-    })
+    }),
   );
   // Take control of all clients immediately
   self.clients.claim();
@@ -59,17 +62,17 @@ self.addEventListener('activate', (event) => {
 // Fetch event - serve from cache, fall back to network
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  
+
   // Skip non-GET requests
   if (event.request.method !== 'GET') {
     return;
   }
-  
+
   // Skip cross-origin requests (except for same-origin)
   if (url.origin !== self.location.origin) {
     return;
   }
-  
+
   // Skip blob: and data: URLs
   if (url.protocol === 'blob:' || url.protocol === 'data:') {
     return;
@@ -92,7 +95,7 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         });
-      })
+      }),
     );
     return;
   }
@@ -115,10 +118,10 @@ self.addEventListener('fetch', (event) => {
           // Network failed, return cached response if available
           return cachedResponse;
         });
-      
+
       // Return cached response immediately, or wait for network
       return cachedResponse || fetchPromise;
-    })
+    }),
   );
 });
 
@@ -128,4 +131,3 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
-

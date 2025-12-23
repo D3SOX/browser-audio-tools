@@ -16,7 +16,7 @@ export type PWAStatus = {
  */
 export function usePWAStatus(): PWAStatus {
   const [isOffline, setIsOffline] = useState(
-    typeof navigator !== 'undefined' ? !navigator.onLine : false
+    typeof navigator !== 'undefined' ? !navigator.onLine : false,
   );
   const [isServiceWorkerActive, setIsServiceWorkerActive] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -28,7 +28,8 @@ export function usePWAStatus(): PWAStatus {
     const checkInstalled = () => {
       const isStandalone =
         window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+        (window.navigator as Navigator & { standalone?: boolean })
+          .standalone === true;
       setIsInstalled(isStandalone);
     };
     checkInstalled();
@@ -86,4 +87,3 @@ export async function warmupFFmpeg(): Promise<void> {
   const audioProcessor = await import('../../lib/audioProcessor');
   await audioProcessor.ensureFFmpegLoaded();
 }
-

@@ -31,7 +31,10 @@ import {
 } from './utils/detectAdblock';
 
 type AllowedPropertyValues = string | number | boolean | null | undefined;
-type TrackFn = (event: string, properties?: Record<string, AllowedPropertyValues>) => void;
+type TrackFn = (
+  event: string,
+  properties?: Record<string, AllowedPropertyValues>,
+) => void;
 
 import { ActionsSection } from './components/ActionsSection';
 import { AudioFilePicker } from './components/AudioFilePicker';
