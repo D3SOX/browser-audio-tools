@@ -60,6 +60,29 @@ export function selectCoreBaseURL(): {
 }
 
 /**
+ * Wait for service worker to be controlling the page.
+ */
+async function waitForServiceWorkerController(): Promise<void> {
+  if (!('serviceWorker' in navigator)) {
+    throw new Error('Service workers not supported');
+  }
+
+  // Already controlling
+  if (navigator.serviceWorker.controller) {
+    return;
+  }
+
+  // Wait for controller to be set
+  return new Promise((resolve) => {
+    navigator.serviceWorker.addEventListener(
+      'controllerchange',
+      () => resolve(),
+      { once: true },
+    );
+  });
+}
+
+/**
  * Preload ffmpeg core files into cache for offline use.
  * Call this on page load to ensure ffmpeg works offline.
  */
@@ -69,26 +92,32 @@ export async function preloadFFmpegCore(): Promise<void> {
     ? ['ffmpeg-core.js', 'ffmpeg-core.wasm', 'ffmpeg-core.worker.js']
     : ['ffmpeg-core.js', 'ffmpeg-core.wasm'];
 
-  console.info('[ffmpeg] Preloading core from:', baseURL);
+  // Wait for SW to be controlling so fetches go through it
+  try {
+    await waitForServiceWorkerController();
+    console.info('[ffmpeg] SW is controlling, preloading core from:', baseURL);
+  } catch {
+    console.warn('[ffmpeg] No SW support, skipping preload');
+    return;
+  }
 
-  await Promise.all(
-    files.map((file) =>
-      fetch(`${baseURL}/${file}`)
-        .then((res) => {
-          if (res.ok) {
-            console.info('[ffmpeg] Cached:', `${baseURL}/${file}`);
-          }
-          return res;
-        })
-        .catch((err) => {
-          console.warn(
-            '[ffmpeg] Failed to preload:',
-            `${baseURL}/${file}`,
-            err,
-          );
-        }),
-    ),
-  );
+  // Fetch files sequentially to avoid overwhelming the browser
+  // and ensure each one is fully cached before moving on
+  for (const file of files) {
+    const url = `${baseURL}/${file}`;
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        // Consume the response body to ensure it's fully cached
+        await res.blob();
+        console.info('[ffmpeg] Cached:', url);
+      } else {
+        console.warn('[ffmpeg] Failed to fetch:', url, res.status);
+      }
+    } catch (err) {
+      console.warn('[ffmpeg] Failed to preload:', url, err);
+    }
+  }
 
   console.info('[ffmpeg] Core preload complete');
 }

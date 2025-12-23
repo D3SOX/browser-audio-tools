@@ -1,7 +1,7 @@
 // Service Worker for Browser Audio Tools PWA
 // Provides offline support by caching the app shell and ffmpeg core assets
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `browser-audio-tools-${CACHE_VERSION}`;
 
 // Core assets to precache - the app shell and ffmpeg core files
@@ -79,33 +79,35 @@ self.addEventListener('fetch', (event) => {
   }
 
   // For ffmpeg core files, use cache-first strategy (they're versioned and immutable)
+  // Match by URL only (ignoring headers) to ensure cache hits
   if (url.pathname.startsWith('/ffmpeg-core')) {
     event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          console.info('[SW] Serving from cache:', url.pathname);
-          return cachedResponse;
-        }
-        console.info('[SW] Fetching ffmpeg asset:', url.pathname);
-        return fetch(event.request)
-          .then((response) => {
-            // Cache the response for future use
-            if (response.ok) {
-              const responseToCache = response.clone();
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-            }
-            return response;
-          })
-          .catch((err) => {
-            console.error(
-              '[SW] Failed to fetch ffmpeg asset:',
-              url.pathname,
-              err,
-            );
-            throw err;
-          });
+      caches.open(CACHE_NAME).then((cache) => {
+        // Match by URL string to ignore header differences
+        return cache.match(url.pathname).then((cachedResponse) => {
+          if (cachedResponse) {
+            console.info('[SW] Serving from cache:', url.pathname);
+            return cachedResponse;
+          }
+          console.info('[SW] Fetching ffmpeg asset:', url.pathname);
+          return fetch(event.request)
+            .then((response) => {
+              // Cache the response for future use (by URL path for consistent matching)
+              if (response.ok) {
+                const responseToCache = response.clone();
+                cache.put(url.pathname, responseToCache);
+              }
+              return response;
+            })
+            .catch((err) => {
+              console.error(
+                '[SW] Failed to fetch ffmpeg asset:',
+                url.pathname,
+                err,
+              );
+              throw err;
+            });
+        });
       }),
     );
     return;
