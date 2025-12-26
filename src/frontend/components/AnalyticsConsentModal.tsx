@@ -92,7 +92,7 @@ export function AnalyticsConsentModal({
                 : undefined
             }
           >
-            Allow analytics
+            Allow
           </button>
         </div>
       </div>
