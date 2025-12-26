@@ -44,9 +44,8 @@ export function AnalyticsConsentModal({
         {showDetails && (
           <div className="consent-modal-details">
             <p className="consent-modal-text-small">
-              <strong>What we collect:</strong> Page views, Web
-              Vitals, device/browser info, and coarse location (country/region
-              only).
+              <strong>What we collect:</strong> Page views, Web Vitals,
+              device/browser info, and coarse location (country/region only).
             </p>
             <p className="consent-modal-text-small">
               <strong>What we don't:</strong> Audio files, filenames, IP
