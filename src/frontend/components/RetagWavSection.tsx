@@ -4,10 +4,13 @@ import {
   type KeyboardEvent,
   useId,
   useRef,
+  useState,
 } from 'react';
 import type { ID3Metadata } from '../api';
+import type { MetadataField } from '../types';
 import { formatSize } from '../utils/formatSize';
 import { CoverArtPicker } from './CoverArtPicker';
+import { MetadataImportPanel } from './MetadataImportPanel';
 
 type RetagWavSectionProps = {
   wavFile: File | null;
@@ -30,6 +33,14 @@ type RetagWavSectionProps = {
     value: ID3Metadata[K],
   ) => void;
   onCoverChange: (file: File | null) => void;
+  // Separate metadata sources
+  wavMetadata: ID3Metadata | null;
+  mp3SourceMetadata: ID3Metadata | null;
+  mp3SourceCoverPreviewUrl: string | null;
+  loadingWavMetadata: boolean;
+  loadingMp3SourceMetadata: boolean;
+  onImportWavFields: (fields: Set<string>) => void;
+  onImportMp3SourceFields: (fields: Set<string>) => void;
 };
 
 export function RetagWavSection({
@@ -50,6 +61,13 @@ export function RetagWavSection({
   onMp3Change,
   onMetadataChange,
   onCoverChange,
+  wavMetadata,
+  mp3SourceMetadata,
+  mp3SourceCoverPreviewUrl,
+  loadingWavMetadata,
+  loadingMp3SourceMetadata,
+  onImportWavFields,
+  onImportMp3SourceFields,
 }: RetagWavSectionProps) {
   const wavInputId = useId();
   const mp3InputId = useId();
@@ -77,6 +95,69 @@ export function RetagWavSection({
       action();
     }
   };
+
+  // Track which fields the user wants to import from WAV
+  const [selectedWavFields, setSelectedWavFields] = useState<
+    Set<MetadataField>
+  >(new Set(['title', 'artist', 'album', 'year', 'track', 'genre']));
+
+  // Track which fields the user wants to import from MP3 source
+  const [selectedMp3SourceFields, setSelectedMp3SourceFields] = useState<
+    Set<MetadataField>
+  >(new Set(['title', 'artist', 'album', 'year', 'track', 'genre', 'cover']));
+
+  const toggleWavField = (field: MetadataField) => {
+    setSelectedWavFields((prev) => {
+      const next = new Set(prev);
+      if (next.has(field)) {
+        next.delete(field);
+      } else {
+        next.add(field);
+      }
+      return next;
+    });
+  };
+
+  const toggleMp3SourceField = (field: MetadataField) => {
+    setSelectedMp3SourceFields((prev) => {
+      const next = new Set(prev);
+      if (next.has(field)) {
+        next.delete(field);
+      } else {
+        next.add(field);
+      }
+      return next;
+    });
+  };
+
+  const handleImportWav = () => {
+    onImportWavFields(selectedWavFields);
+  };
+
+  const handleImportMp3Source = () => {
+    onImportMp3SourceFields(selectedMp3SourceFields);
+  };
+
+  // WAV fields (no cover art)
+  const wavFields: MetadataField[] = [
+    'title',
+    'artist',
+    'album',
+    'year',
+    'track',
+    'genre',
+  ];
+
+  // MP3 source fields (includes cover art)
+  const mp3SourceFields: MetadataField[] = [
+    'title',
+    'artist',
+    'album',
+    'year',
+    'track',
+    'genre',
+    'cover',
+  ];
 
   return (
     <>
@@ -222,6 +303,34 @@ export function RetagWavSection({
             </div>
           </button>
         </div>
+
+        <div className="metadata-import-panels-grid">
+          <MetadataImportPanel
+            title="From WAV file"
+            availableFields={wavFields}
+            metadata={wavMetadata}
+            coverPreviewUrl={null}
+            selectedFields={selectedWavFields}
+            onToggleField={toggleWavField}
+            onImport={handleImportWav}
+            loading={loadingWavMetadata}
+            fileSelected={!!wavFile}
+            emptyMessage="No metadata found in WAV file."
+          />
+
+          <MetadataImportPanel
+            title="From MP3 source file"
+            availableFields={mp3SourceFields}
+            metadata={mp3SourceMetadata}
+            coverPreviewUrl={mp3SourceCoverPreviewUrl}
+            selectedFields={selectedMp3SourceFields}
+            onToggleField={toggleMp3SourceField}
+            onImport={handleImportMp3Source}
+            loading={loadingMp3SourceMetadata}
+            fileSelected={!!mp3SourceFile}
+            emptyMessage="No metadata found in MP3 source file."
+          />
+        </div>
       </section>
 
       <section className="section">
@@ -310,8 +419,8 @@ export function RetagWavSection({
           </div>
         </div>
         <p className="hint">
-          Metadata is prefilled from the MP3 source if provided. Edit before
-          converting.
+          Import metadata from the WAV or MP3 source files above, or edit
+          manually before converting.
         </p>
       </section>
     </>

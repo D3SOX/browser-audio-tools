@@ -170,13 +170,31 @@ export default function App() {
   const [wavFile, setWavFile] = useState<File | null>(null);
   const [mp3SourceFile, setMp3SourceFile] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<ID3Metadata>(defaultMetadata);
-  const [loadingMetadata, setLoadingMetadata] = useState(false);
   const [dragOverWav, setDragOverWav] = useState(false);
   const [dragOverMp3, setDragOverMp3] = useState(false);
   const [convertCover, setConvertCover] = useState<Uint8Array | null>(null);
   const [convertCoverPreviewUrl, setConvertCoverPreviewUrl] = useState<
     string | null
   >(null);
+
+  // Separate metadata sources for Retag WAV
+  const [wavMetadata, setWavMetadata] = useState<ID3Metadata | null>(null);
+  const [mp3SourceMetadata, setMp3SourceMetadata] =
+    useState<ID3Metadata | null>(null);
+  const [mp3SourceCover, setMp3SourceCover] = useState<Uint8Array | null>(null);
+  const [mp3SourceCoverPreviewUrl, setMp3SourceCoverPreviewUrl] = useState<
+    string | null
+  >(null);
+  const [loadingWavMetadata, setLoadingWavMetadata] = useState(false);
+  const [loadingMp3SourceMetadata, setLoadingMp3SourceMetadata] =
+    useState(false);
+
+  // Computed loading state for Retag WAV (either WAV or MP3 source is loading)
+  const loadingMetadata = loadingWavMetadata || loadingMp3SourceMetadata;
+
+  // Request tracking refs to prevent race conditions
+  const wavFileRequestIdRef = useRef<number>(0);
+  const mp3SourceFileRequestIdRef = useRef<number>(0);
 
   // Generic converter state
   const [genericConvertFiles, setGenericConvertFiles] = useState<File[]>([]);
@@ -457,15 +475,31 @@ export default function App() {
       clearResults();
 
       if (nextFile) {
-        setLoadingMetadata(true);
+        // Increment request ID and capture it
+        const requestId = ++wavFileRequestIdRef.current;
+        setLoadingWavMetadata(true);
+        setWavMetadata(null);
+
         try {
           const meta = await readMetadataFromFile(nextFile);
-          setMetadata(meta);
+          // Only update if this is still the latest request
+          if (requestId === wavFileRequestIdRef.current) {
+            setWavMetadata(meta);
+          }
         } catch (err) {
           console.error('Failed to read WAV metadata:', err);
-          // Keep existing metadata on error
+          // Only update if this is still the latest request
+          if (requestId === wavFileRequestIdRef.current) {
+            setWavMetadata(null);
+          }
+        } finally {
+          if (requestId === wavFileRequestIdRef.current) {
+            setLoadingWavMetadata(false);
+          }
         }
-        setLoadingMetadata(false);
+      } else {
+        setWavMetadata(null);
+        setLoadingWavMetadata(false);
       }
     },
     [clearResults],
@@ -475,21 +509,31 @@ export default function App() {
     async (nextFile: File | null) => {
       setMp3SourceFile(nextFile);
       clearResults();
-      // Clean up previous cover preview URL
-      if (convertCoverPreviewUrl) {
-        URL.revokeObjectURL(convertCoverPreviewUrl);
+      // Clean up previous MP3 source cover preview URL
+      if (mp3SourceCoverPreviewUrl) {
+        URL.revokeObjectURL(mp3SourceCoverPreviewUrl);
       }
-      setConvertCover(null);
-      setConvertCoverPreviewUrl(null);
+      setMp3SourceCover(null);
+      setMp3SourceCoverPreviewUrl(null);
 
       if (nextFile) {
-        setLoadingMetadata(true);
+        // Increment request ID and capture it
+        const requestId = ++mp3SourceFileRequestIdRef.current;
+        setLoadingMp3SourceMetadata(true);
+        setMp3SourceMetadata(null);
+
         try {
           const meta = await readMetadataFromFile(nextFile);
-          setMetadata(meta);
+          // Only update if this is still the latest request
+          if (requestId === mp3SourceFileRequestIdRef.current) {
+            setMp3SourceMetadata(meta);
+          }
         } catch (err) {
-          console.error('Failed to read metadata:', err);
-          setMetadata(defaultMetadata);
+          console.error('Failed to read MP3 source metadata:', err);
+          // Only update if this is still the latest request
+          if (requestId === mp3SourceFileRequestIdRef.current) {
+            setMp3SourceMetadata(null);
+          }
         }
         // Try to extract existing cover
         try {
@@ -497,17 +541,24 @@ export default function App() {
           const coverData = new Uint8Array(
             await coverResult.blob.arrayBuffer(),
           );
-          setConvertCover(coverData);
-          setConvertCoverPreviewUrl(URL.createObjectURL(coverResult.blob));
+          // Only update if this is still the latest request
+          if (requestId === mp3SourceFileRequestIdRef.current) {
+            setMp3SourceCover(coverData);
+            setMp3SourceCoverPreviewUrl(URL.createObjectURL(coverResult.blob));
+          }
         } catch {
           // No cover or extraction failed - that's fine
+        } finally {
+          if (requestId === mp3SourceFileRequestIdRef.current) {
+            setLoadingMp3SourceMetadata(false);
+          }
         }
-        setLoadingMetadata(false);
       } else {
-        setMetadata(defaultMetadata);
+        setMp3SourceMetadata(null);
+        setLoadingMp3SourceMetadata(false);
       }
     },
-    [clearResults, convertCoverPreviewUrl],
+    [clearResults, mp3SourceCoverPreviewUrl],
   );
 
   const handleWavDrop = useCallback(
@@ -775,6 +826,80 @@ export default function App() {
     [retagDonorMetadata, retagDonorCover, retagCoverPreviewUrl],
   );
 
+  const handleImportWavFields = useCallback(
+    (fieldsToImport: Set<string>) => {
+      if (!wavMetadata) return;
+
+      setMetadata((prev) => {
+        const next = { ...prev };
+        if (fieldsToImport.has('title') && wavMetadata.title) {
+          next.title = wavMetadata.title;
+        }
+        if (fieldsToImport.has('artist') && wavMetadata.artist) {
+          next.artist = wavMetadata.artist;
+        }
+        if (fieldsToImport.has('album') && wavMetadata.album) {
+          next.album = wavMetadata.album;
+        }
+        if (fieldsToImport.has('year') && wavMetadata.year) {
+          next.year = wavMetadata.year;
+        }
+        if (fieldsToImport.has('track') && wavMetadata.track) {
+          next.track = wavMetadata.track;
+        }
+        if (fieldsToImport.has('genre') && wavMetadata.genre) {
+          next.genre = wavMetadata.genre;
+        }
+        // Note: WAV files don't support cover art, so we skip 'cover'
+        return next;
+      });
+    },
+    [wavMetadata],
+  );
+
+  const handleImportMp3SourceFields = useCallback(
+    (fieldsToImport: Set<string>) => {
+      if (!mp3SourceMetadata) return;
+
+      setMetadata((prev) => {
+        const next = { ...prev };
+        if (fieldsToImport.has('title') && mp3SourceMetadata.title) {
+          next.title = mp3SourceMetadata.title;
+        }
+        if (fieldsToImport.has('artist') && mp3SourceMetadata.artist) {
+          next.artist = mp3SourceMetadata.artist;
+        }
+        if (fieldsToImport.has('album') && mp3SourceMetadata.album) {
+          next.album = mp3SourceMetadata.album;
+        }
+        if (fieldsToImport.has('year') && mp3SourceMetadata.year) {
+          next.year = mp3SourceMetadata.year;
+        }
+        if (fieldsToImport.has('track') && mp3SourceMetadata.track) {
+          next.track = mp3SourceMetadata.track;
+        }
+        if (fieldsToImport.has('genre') && mp3SourceMetadata.genre) {
+          next.genre = mp3SourceMetadata.genre;
+        }
+        return next;
+      });
+
+      // Import cover if selected
+      if (fieldsToImport.has('cover') && mp3SourceCover) {
+        if (convertCoverPreviewUrl) {
+          URL.revokeObjectURL(convertCoverPreviewUrl);
+        }
+        setConvertCover(mp3SourceCover);
+        // Create a new URL from the MP3 source cover data
+        const blob = new Blob([new Uint8Array(mp3SourceCover)], {
+          type: 'image/jpeg',
+        });
+        setConvertCoverPreviewUrl(URL.createObjectURL(blob));
+      }
+    },
+    [mp3SourceMetadata, mp3SourceCover, convertCoverPreviewUrl],
+  );
+
   const handleTrimFileSelect = useCallback(
     (nextFile: File | null) => {
       setTrimFile(nextFile);
@@ -870,6 +995,15 @@ export default function App() {
     setWavFile(null);
     setMp3SourceFile(null);
     setMetadata(defaultMetadata);
+    setWavMetadata(null);
+    setMp3SourceMetadata(null);
+    setLoadingWavMetadata(false);
+    setLoadingMp3SourceMetadata(false);
+    if (mp3SourceCoverPreviewUrl) {
+      URL.revokeObjectURL(mp3SourceCoverPreviewUrl);
+    }
+    setMp3SourceCover(null);
+    setMp3SourceCoverPreviewUrl(null);
     setOptions(defaultOptions);
     setGenericConvertFiles([]);
     setGenericConvertOptions(defaultGenericConvertOptions);
@@ -917,6 +1051,7 @@ export default function App() {
     convertCoverPreviewUrl,
     retagCoverPreviewUrl,
     retagDonorCoverPreviewUrl,
+    mp3SourceCoverPreviewUrl,
     resetOutputFilename,
   ]);
 
@@ -1328,6 +1463,13 @@ export default function App() {
             onMp3Change={handleMp3SourceSelect}
             onMetadataChange={updateMetadata}
             onCoverChange={handleConvertCoverChange}
+            wavMetadata={wavMetadata}
+            mp3SourceMetadata={mp3SourceMetadata}
+            mp3SourceCoverPreviewUrl={mp3SourceCoverPreviewUrl}
+            loadingWavMetadata={loadingWavMetadata}
+            loadingMp3SourceMetadata={loadingMp3SourceMetadata}
+            onImportWavFields={handleImportWavFields}
+            onImportMp3SourceFields={handleImportMp3SourceFields}
           />
         </div>
 

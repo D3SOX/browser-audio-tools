@@ -7,23 +7,10 @@ import {
   useState,
 } from 'react';
 import type { ID3Metadata } from '../api';
+import { FIELD_LABELS, type MetadataField } from '../types';
 import { formatSize } from '../utils/formatSize';
 import { CoverArtPicker } from './CoverArtPicker';
-
-const CheckIcon = () => (
-  <svg
-    viewBox="0 0 12 12"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <title>Checkmark</title>
-    <polyline points="2.5,6 5,8.5 9.5,3.5" />
-  </svg>
-);
+import { MetadataImportPanel } from './MetadataImportPanel';
 
 type RetagSectionProps = {
   file: File | null;
@@ -51,25 +38,6 @@ type RetagSectionProps = {
   onDonorDragLeave: (e: DragEvent) => void;
   onDonorFileChange: (file: File | null) => void;
   onImportFields: (fields: Set<string>) => void;
-};
-
-type MetadataField =
-  | 'title'
-  | 'artist'
-  | 'album'
-  | 'year'
-  | 'track'
-  | 'genre'
-  | 'cover';
-
-const FIELD_LABELS: Record<MetadataField, string> = {
-  title: 'Title',
-  artist: 'Artist',
-  album: 'Album',
-  year: 'Year',
-  track: 'Track #',
-  genre: 'Genre',
-  cover: 'Cover Art',
 };
 
 export function RetagSection({
@@ -143,12 +111,6 @@ export function RetagSection({
     onImportFields(selectedFields);
   };
 
-  // Helper to get donor field value for display
-  const getDonorFieldValue = (field: MetadataField): string | null => {
-    if (field === 'cover') return donorCoverPreviewUrl ? 'Available' : null;
-    return donorMetadata?.[field] || null;
-  };
-
   const availableFields: MetadataField[] = [
     'title',
     'artist',
@@ -158,15 +120,6 @@ export function RetagSection({
     'genre',
     'cover',
   ];
-  const hasAnyDonorData =
-    donorMetadata &&
-    (donorMetadata.title ||
-      donorMetadata.artist ||
-      donorMetadata.album ||
-      donorMetadata.year ||
-      donorMetadata.track ||
-      donorMetadata.genre ||
-      donorCoverPreviewUrl);
 
   return (
     <>
@@ -311,61 +264,18 @@ export function RetagSection({
           </button>
         </div>
 
-        {loadingDonorMetadata && (
-          <p className="hint">Loading donor metadata...</p>
-        )}
-
-        {donorFile && !loadingDonorMetadata && hasAnyDonorData && (
-          <div className="donor-import-panel">
-            <div className="donor-fields-list">
-              {availableFields.map((field) => {
-                const value = getDonorFieldValue(field);
-                const hasValue = value !== null;
-                return (
-                  <label
-                    key={field}
-                    className={`donor-field-item checkbox-label ${!hasValue ? 'donor-field-disabled' : ''}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedFields.has(field) && hasValue}
-                      disabled={!hasValue}
-                      onChange={() => toggleField(field)}
-                    />
-                    <span className="checkbox-custom">
-                      <CheckIcon />
-                    </span>
-                    <span className="donor-field-label">
-                      {FIELD_LABELS[field]}
-                    </span>
-                    {hasValue && field !== 'cover' && (
-                      <span className="donor-field-value">{value}</span>
-                    )}
-                    {hasValue && field === 'cover' && donorCoverPreviewUrl && (
-                      <img
-                        src={donorCoverPreviewUrl}
-                        alt="Donor cover"
-                        className="donor-cover-preview"
-                      />
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              className="btn btn-secondary btn-small"
-              onClick={handleImport}
-              disabled={selectedFields.size === 0}
-            >
-              Import selected fields
-            </button>
-          </div>
-        )}
-
-        {donorFile && !loadingDonorMetadata && !hasAnyDonorData && (
-          <p className="hint hint-warning">No metadata found in donor file.</p>
-        )}
+        <MetadataImportPanel
+          title="From donor MP3"
+          availableFields={availableFields}
+          metadata={donorMetadata}
+          coverPreviewUrl={donorCoverPreviewUrl}
+          selectedFields={selectedFields}
+          onToggleField={toggleField}
+          onImport={handleImport}
+          loading={loadingDonorMetadata}
+          fileSelected={!!donorFile}
+          emptyMessage="No metadata found in donor file."
+        />
       </section>
 
       <section className="section">

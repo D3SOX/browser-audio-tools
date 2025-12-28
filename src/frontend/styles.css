@@ -1164,6 +1164,10 @@ select:disabled {
     grid-template-columns: 1fr;
   }
 
+  .metadata-import-panels-grid {
+    grid-template-columns: 1fr;
+  }
+
   .retag-metadata-layout {
     flex-direction: column;
     gap: 1rem;
@@ -1774,12 +1778,29 @@ select:disabled {
   margin: 0 0 0.75rem;
 }
 
+.metadata-import-panels-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.metadata-import-panels-grid .donor-import-panel {
+  margin-top: 0;
+}
+
 .donor-import-panel {
   margin-top: 1rem;
   padding: 1rem;
   background: var(--dropzone-bg);
   border: 1px solid var(--card-border);
   border-radius: 12px;
+}
+
+.donor-import-header {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
 }
 
 .donor-fields-list {
