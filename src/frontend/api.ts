@@ -47,6 +47,7 @@ export interface ProcessOptions {
   noiseVolume: number;
   noiseType: NoiseType;
   bitrate: string;
+  prependNoise?: boolean;
 }
 
 export interface ApiResult {
@@ -72,6 +73,7 @@ export async function processAudio(
     noiseVolume: options.noiseVolume,
     noiseType: options.noiseType,
     bitrate: options.bitrate,
+    prependNoise: options.prependNoise,
   };
 
   const result = await addNoiseAndConcat(input, noiseOpts, onProgress);
@@ -247,6 +249,7 @@ export async function processAudioBatch(
       noiseVolume: options.noiseVolume,
       noiseType: options.noiseType,
       bitrate: options.bitrate,
+      prependNoise: options.prependNoise,
     };
 
     const fileProgress: ProgressCallback = ({ percent }) => {

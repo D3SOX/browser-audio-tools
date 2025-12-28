@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import type { NoiseType, ProcessOptions } from '../api';
+import { Switch } from './Switch';
 
 type NoiseOptionsProps = {
   options: ProcessOptions;
@@ -68,6 +69,40 @@ export function NoiseOptions({ options, onChange }: NoiseOptionsProps) {
             value={options.bitrate}
             onChange={(e) => onChange('bitrate', e.target.value)}
           />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <Switch
+            checked={options.prependNoise ?? false}
+            onChange={(e) => onChange('prependNoise', e.target.checked)}
+            leftIcon={
+              <svg
+                viewBox="0 0 12 12"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7.5 3L4.5 6L7.5 9" />
+              </svg>
+            }
+            rightIcon={
+              <svg
+                viewBox="0 0 12 12"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M4.5 3L7.5 6L4.5 9" />
+              </svg>
+            }
+          >
+            {options.prependNoise ? 'Prepend' : 'Append'} (click to toggle)
+          </Switch>
         </div>
       </div>
     </section>

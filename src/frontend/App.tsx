@@ -78,6 +78,7 @@ const defaultOptions: ProcessOptions = {
   noiseVolume: 0.05,
   noiseType: 'pink',
   bitrate: '192k',
+  prependNoise: false,
 };
 
 const defaultGenericConvertOptions: GenericConvertOptions = {

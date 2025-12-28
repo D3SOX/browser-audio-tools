@@ -10,6 +10,7 @@ export interface NoiseOptions {
   noiseVolume?: number;
   noiseType?: NoiseType;
   bitrate?: string;
+  prependNoise?: boolean;
 }
 
 export interface ProcessResult {
@@ -193,10 +194,29 @@ export async function addNoiseAndConcat(
 
   await ff.writeFile(inputName, input);
 
-  const filterComplex =
-    noiseColor === 'pink'
-      ? '[0:a]highpass=f=20,lowpass=f=4000[n];[n][1:a]concat=n=2:v=0:a=1[aout]'
-      : '[0:a][1:a]concat=n=2:v=0:a=1[aout]';
+  const prependNoise = options.prependNoise ?? false;
+
+  let filterComplex: string;
+  if (noiseColor === 'pink') {
+    // Always filter the noise (input 0)
+    if (prependNoise) {
+      // Prepend: filtered noise first, then audio
+      filterComplex =
+        '[0:a]highpass=f=20,lowpass=f=4000[n];[n][1:a]concat=n=2:v=0:a=1[aout]';
+    } else {
+      // Append: audio first, then filtered noise
+      filterComplex =
+        '[0:a]highpass=f=20,lowpass=f=4000[n];[1:a][n]concat=n=2:v=0:a=1[aout]';
+    }
+  } else {
+    if (prependNoise) {
+      // Prepend: noise first, then audio
+      filterComplex = '[0:a][1:a]concat=n=2:v=0:a=1[aout]';
+    } else {
+      // Append: audio first, then noise
+      filterComplex = '[1:a][0:a]concat=n=2:v=0:a=1[aout]';
+    }
+  }
 
   try {
     await execWithProgress(
