@@ -1779,6 +1779,8 @@ select:disabled {
   grid-template-columns: 1fr;
   gap: 1rem;
   margin-top: 1rem;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .metadata-import-panels-grid .donor-import-panel {
@@ -1797,6 +1799,9 @@ select:disabled {
   background: var(--dropzone-bg);
   border: 1px solid var(--card-border);
   border-radius: 12px;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .donor-import-header {
@@ -1822,6 +1827,8 @@ select:disabled {
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .donor-field-item:hover:not(.donor-field-disabled) {
@@ -1869,10 +1876,11 @@ select:disabled {
 .donor-field-value {
   font-size: 0.85rem;
   color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
 }
 
 .donor-cover-preview {
