@@ -7,6 +7,7 @@ import type {
   SampleRate,
 } from '../api';
 import { formatSupportsCoverArt } from '../api';
+import { BITRATE_OPTIONS } from '../types';
 import { formatSize } from '../utils/formatSize';
 
 type ConvertSectionProps = {
@@ -197,11 +198,11 @@ export function ConvertSection({
               onChange={(e) => onOptionChange('bitrate', e.target.value)}
               disabled={isLosslessFormat}
             >
-              <option value="96k">96 kbps</option>
-              <option value="128k">128 kbps</option>
-              <option value="192k">192 kbps</option>
-              <option value="256k">256 kbps</option>
-              <option value="320k">320 kbps</option>
+              {BITRATE_OPTIONS.map((bitrate) => (
+                <option key={bitrate} value={bitrate}>
+                  {bitrate.replace('k', '')} kbps
+                </option>
+              ))}
             </select>
           </div>
           <div className="input-group">

@@ -27,3 +27,6 @@ export const FIELD_LABELS: Record<MetadataField, string> = {
   genre: 'Genre',
   cover: 'Cover Art',
 };
+
+export const BITRATE_OPTIONS = ['96k', '128k', '192k', '256k', '320k'] as const;
+export type Bitrate = (typeof BITRATE_OPTIONS)[number];

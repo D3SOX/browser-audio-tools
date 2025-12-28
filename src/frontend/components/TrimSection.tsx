@@ -4,6 +4,7 @@ import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import type { OutputFormat, TrimOutputFormat } from '../api';
 import { formatSupportsCoverArt } from '../api';
+import { BITRATE_OPTIONS } from '../types';
 import { formatSize } from '../utils/formatSize';
 import { Checkbox } from './Checkbox';
 
@@ -550,11 +551,11 @@ export function TrimSection({
                     onChange={(e) => updateOption('bitrate', e.target.value)}
                     disabled={disableBitrate}
                   >
-                    <option value="96k">96 kbps</option>
-                    <option value="128k">128 kbps</option>
-                    <option value="192k">192 kbps</option>
-                    <option value="256k">256 kbps</option>
-                    <option value="320k">320 kbps</option>
+                    {BITRATE_OPTIONS.map((bitrate) => (
+                      <option key={bitrate} value={bitrate}>
+                        {bitrate.replace('k', '')} kbps
+                      </option>
+                    ))}
                   </select>
                 </div>
               );

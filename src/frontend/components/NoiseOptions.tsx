@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import type { NoiseType, ProcessOptions } from '../api';
+import { BITRATE_OPTIONS } from '../types';
 import { Switch } from './Switch';
 
 type NoiseOptionsProps = {
@@ -63,12 +64,17 @@ export function NoiseOptions({ options, onChange }: NoiseOptionsProps) {
         </div>
         <div className="input-group">
           <label htmlFor={bitrateId}>Output bitrate</label>
-          <input
+          <select
             id={bitrateId}
-            type="text"
             value={options.bitrate}
             onChange={(e) => onChange('bitrate', e.target.value)}
-          />
+          >
+            {BITRATE_OPTIONS.map((bitrate) => (
+              <option key={bitrate} value={bitrate}>
+                {bitrate.replace('k', '')} kbps
+              </option>
+            ))}
+          </select>
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <Switch
