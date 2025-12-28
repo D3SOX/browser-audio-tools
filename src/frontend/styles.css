@@ -1164,10 +1164,6 @@ select:disabled {
     grid-template-columns: 1fr;
   }
 
-  .metadata-import-panels-grid {
-    grid-template-columns: 1fr;
-  }
-
   .retag-metadata-layout {
     flex-direction: column;
     gap: 1rem;
@@ -1780,13 +1776,19 @@ select:disabled {
 
 .metadata-import-panels-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 1rem;
   margin-top: 1rem;
 }
 
 .metadata-import-panels-grid .donor-import-panel {
   margin-top: 0;
+}
+
+@media (min-width: 768px) {
+  .metadata-import-panels-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .donor-import-panel {
