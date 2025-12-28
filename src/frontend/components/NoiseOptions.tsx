@@ -78,8 +78,8 @@ export function NoiseOptions({ options, onChange }: NoiseOptionsProps) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <Switch
-            checked={options.prependNoise ?? false}
-            onChange={(e) => onChange('prependNoise', e.target.checked)}
+            checked={!(options.prependNoise ?? false)}
+            onChange={(e) => onChange('prependNoise', !e.target.checked)}
             leftIcon={
               <svg
                 viewBox="0 0 12 12"
