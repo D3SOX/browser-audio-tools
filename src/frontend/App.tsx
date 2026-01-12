@@ -1252,7 +1252,7 @@ export default function App() {
         );
         const bitrateInfo = isLossless
           ? 'lossless'
-          : genericConvertOptions.bitrate;
+          : genericConvertOptions.bitrate ?? 'original';
 
         if (genericConvertFiles.length === 1) {
           const [singleFile] = genericConvertFiles;
