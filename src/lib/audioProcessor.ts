@@ -473,8 +473,8 @@ export type Channels = 1 | 2 | 'auto';
 
 export interface GenericConvertOptions {
   format: OutputFormat;
-  bitrate: string; // e.g., "128k", "192k", "320k" (ignored for lossless)
-  sampleRate: SampleRate;
+  bitrate: string | null; // e.g., "128k", "192k", "320k" (null = preserve original, ignored for lossless)
+  sampleRate: SampleRate | null; // null = preserve original
   channels: Channels;
 }
 
@@ -726,7 +726,11 @@ function parseBitrateKbps(bitrate: string): string {
 
 function assertGenericConvertCompatibility(options: GenericConvertOptions) {
   const caps = FORMAT_CAPABILITIES[options.format];
-  if (!caps.sampleRates.includes(options.sampleRate)) {
+  // Only validate sample rate if it's explicitly set (not null)
+  if (
+    options.sampleRate !== null &&
+    !caps.sampleRates.includes(options.sampleRate)
+  ) {
     throw new Error(
       `${options.format.toUpperCase()} supports sample rates ${caps.sampleRates.join(
         ' / ',
@@ -768,7 +772,9 @@ export async function convertAudio(
   onProgress?: ProgressCallback,
 ): Promise<ProcessResult> {
   assertGenericConvertCompatibility(options);
-  const normalizedBitrate = parseBitrateKbps(options.bitrate);
+  const normalizedBitrate = options.bitrate
+    ? parseBitrateKbps(options.bitrate)
+    : null;
 
   const ff = await ensureFFmpegLoaded();
   const logs = createLogCollector(ff);
@@ -814,7 +820,12 @@ export async function convertAudio(
     args.push('-vn');
   }
 
-  args.push('-c:a', config.codec, '-ar', String(options.sampleRate));
+  args.push('-c:a', config.codec);
+
+  // Only set sample rate if explicitly provided (null = preserve original)
+  if (options.sampleRate !== null) {
+    args.push('-ar', String(options.sampleRate));
+  }
 
   // Only set channel count when explicitly requested; "auto" preserves source layout.
   if (options.channels !== 'auto') {
@@ -823,17 +834,21 @@ export async function convertAudio(
 
   // Vorbis: prefer quality scale for stability across mono/stereo and bitrates
   if (options.format === 'ogg') {
-    const quality = VORBIS_Q_FOR_BITRATE[normalizedBitrate] ?? 4;
-    args.push('-qscale:a', String(quality));
+    if (normalizedBitrate) {
+      const quality = VORBIS_Q_FOR_BITRATE[normalizedBitrate] ?? 4;
+      args.push('-qscale:a', String(quality));
+    }
+    // If bitrate is null, FFmpeg will use default quality
 
     // Add cover art via METADATA_BLOCK_PICTURE Vorbis comment
     if (oggCoverArtBase64) {
       args.push('-metadata', `METADATA_BLOCK_PICTURE=${oggCoverArtBase64}`);
     }
-  } else if (!config.lossless) {
-    // Lossy formats: set explicit bitrate
+  } else if (!config.lossless && normalizedBitrate) {
+    // Lossy formats: set explicit bitrate only if provided
     args.push('-b:a', normalizedBitrate);
   }
+  // If bitrate is null, FFmpeg will use default bitrate for the codec
 
   // AIFF: enable ID3v2 tags to store cover art
   if (options.format === 'aiff') {

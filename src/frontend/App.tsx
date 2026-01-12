@@ -83,8 +83,8 @@ const defaultOptions: ProcessOptions = {
 
 const defaultGenericConvertOptions: GenericConvertOptions = {
   format: 'mp3',
-  bitrate: '320k',
-  sampleRate: 48000,
+  bitrate: null,
+  sampleRate: null,
   channels: 'auto',
 };
 
@@ -644,10 +644,13 @@ export default function App() {
     setGenericConvertOptions((prev) => {
       const next = { ...prev, [key]: value };
       // Enforce safe sample rates per format (avoid invalid encodes/playback)
-      const allowedRates = SAMPLE_RATES_BY_FORMAT[next.format];
-      const defaultRate = allowedRates[0];
-      if (defaultRate && !allowedRates.includes(next.sampleRate)) {
-        next.sampleRate = defaultRate;
+      // Only validate if sampleRate is explicitly set (not null)
+      if (next.sampleRate !== null) {
+        const allowedRates = SAMPLE_RATES_BY_FORMAT[next.format];
+        const defaultRate = allowedRates[0];
+        if (defaultRate && !allowedRates.includes(next.sampleRate)) {
+          next.sampleRate = defaultRate;
+        }
       }
       return next;
     });

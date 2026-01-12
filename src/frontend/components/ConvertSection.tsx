@@ -194,10 +194,16 @@ export function ConvertSection({
             </label>
             <select
               id={bitrateId}
-              value={options.bitrate}
-              onChange={(e) => onOptionChange('bitrate', e.target.value)}
+              value={options.bitrate ?? ''}
+              onChange={(e) =>
+                onOptionChange(
+                  'bitrate',
+                  e.target.value === '' ? null : e.target.value,
+                )
+              }
               disabled={isLosslessFormat}
             >
+              <option value="">Preserve original</option>
               {BITRATE_OPTIONS.map((bitrate) => (
                 <option key={bitrate} value={bitrate}>
                   {bitrate.replace('k', '')} kbps
@@ -209,14 +215,17 @@ export function ConvertSection({
             <label htmlFor={sampleRateId}>Sample rate</label>
             <select
               id={sampleRateId}
-              value={options.sampleRate}
+              value={options.sampleRate ?? ''}
               onChange={(e) =>
                 onOptionChange(
                   'sampleRate',
-                  Number(e.target.value) as SampleRate,
+                  e.target.value === ''
+                    ? null
+                    : (Number(e.target.value) as SampleRate),
                 )
               }
             >
+              <option value="">Preserve original</option>
               {sampleRateOptions.map((rate) => (
                 <option key={rate} value={rate}>
                   {rate / 1000} kHz
