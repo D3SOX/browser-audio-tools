@@ -49,13 +49,13 @@ import {
 import type { Operation } from './types';
 
 const OPERATIONS: Operation[] = [
-  'noise',
-  'cover',
-  'retag-wav',
   'convert',
-  'retag',
   'trim',
+  'retag',
+  'retag-wav',
+  'noise',
   'visualize',
+  'cover',
 ];
 
 const getOperationFromHash = (): Operation | null => {
@@ -147,7 +147,7 @@ export default function App() {
   const isBrowser = typeof window !== 'undefined';
   const { consent, setConsent } = useAnalyticsConsent();
   const [files, setFiles] = useState<File[]>([]);
-  const [operation, setOperation] = useState<Operation>('noise');
+  const [operation, setOperation] = useState<Operation>('convert');
   const [options, setOptions] = useState<ProcessOptions>(defaultOptions);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +160,7 @@ export default function App() {
   const [resultsByOperation, setResultsByOperation] = useState<
     Record<Operation, OperationResult>
   >(createEmptyResultsMap);
-  const currentOperationRef = useRef<Operation>('noise');
+  const currentOperationRef = useRef<Operation>('convert');
   const visualizerRef = useRef<VisualizerHandle>(null);
   const [batchPreviews, setBatchPreviews] = useState<
     { name: string; url: string; type: 'audio' | 'image' }[] | null
@@ -387,7 +387,7 @@ export default function App() {
     if (hashOp) {
       setOperation(hashOp);
     } else {
-      window.history.replaceState(null, '', '#noise');
+      window.history.replaceState(null, '', '#convert');
     }
   }, [isBrowser]);
 
