@@ -1277,7 +1277,7 @@ export default function App() {
         );
         const bitrateInfo = isLossless
           ? 'lossless'
-          : genericConvertOptions.bitrate ?? 'original';
+          : (genericConvertOptions.bitrate ?? 'original');
 
         if (genericConvertFiles.length === 1) {
           const [singleFile] = genericConvertFiles;
@@ -1447,11 +1447,7 @@ export default function App() {
           data-operation-section="audio-file-picker"
         >
           <AudioFilePicker
-            files={
-              operation === 'noise'
-                ? noiseFiles
-                : coverFiles
-            }
+            files={operation === 'noise' ? noiseFiles : coverFiles}
             dragOver={dragOver}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
