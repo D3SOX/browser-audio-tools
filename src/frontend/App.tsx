@@ -146,7 +146,8 @@ const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
 export default function App() {
   const isBrowser = typeof window !== 'undefined';
   const { consent, setConsent } = useAnalyticsConsent();
-  const [files, setFiles] = useState<File[]>([]);
+  const [noiseFiles, setNoiseFiles] = useState<File[]>([]);
+  const [coverFiles, setCoverFiles] = useState<File[]>([]);
   const [operation, setOperation] = useState<Operation>('convert');
   const [options, setOptions] = useState<ProcessOptions>(defaultOptions);
   const [status, setStatus] = useState<string | null>(null);
@@ -944,9 +945,17 @@ export default function App() {
     [handleVisualizerFileSelect],
   );
 
-  const handleFilesSelect = useCallback(
+  const handleNoiseFilesSelect = useCallback(
     (nextFiles: File[]) => {
-      setFiles(nextFiles);
+      setNoiseFiles(nextFiles);
+      clearResults();
+    },
+    [clearResults],
+  );
+
+  const handleCoverFilesSelect = useCallback(
+    (nextFiles: File[]) => {
+      setCoverFiles(nextFiles);
       clearResults();
     },
     [clearResults],
@@ -954,7 +963,11 @@ export default function App() {
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? []);
-    handleFilesSelect(selectedFiles);
+    if (operation === 'noise') {
+      handleNoiseFilesSelect(selectedFiles);
+    } else if (operation === 'cover') {
+      handleCoverFilesSelect(selectedFiles);
+    }
   };
 
   const handleDrop = useCallback(
@@ -965,10 +978,14 @@ export default function App() {
         f.type.startsWith('audio/'),
       );
       if (droppedFiles.length > 0) {
-        handleFilesSelect(droppedFiles);
+        if (operation === 'noise') {
+          handleNoiseFilesSelect(droppedFiles);
+        } else if (operation === 'cover') {
+          handleCoverFilesSelect(droppedFiles);
+        }
       }
     },
-    [handleFilesSelect],
+    [handleNoiseFilesSelect, handleCoverFilesSelect, operation],
   );
 
   const handleDragOver = useCallback((e: DragEvent) => {
@@ -994,7 +1011,8 @@ export default function App() {
         URL.revokeObjectURL(item.url);
       });
     }
-    setFiles([]);
+    setNoiseFiles([]);
+    setCoverFiles([]);
     setWavFile(null);
     setMp3SourceFile(null);
     setMetadata(defaultMetadata);
@@ -1089,9 +1107,16 @@ export default function App() {
         setError('Please choose an audio file to visualize.');
         return;
       }
-    } else if (files.length === 0) {
-      setError('Please choose an audio file.');
-      return;
+    } else if (activeOperation === 'noise') {
+      if (noiseFiles.length === 0) {
+        setError('Please choose an audio file.');
+        return;
+      }
+    } else if (activeOperation === 'cover') {
+      if (coverFiles.length === 0) {
+        setError('Please choose an audio file.');
+        return;
+      }
     }
 
     setProcessing(true);
@@ -1137,8 +1162,8 @@ export default function App() {
 
     try {
       if (activeOperation === 'noise') {
-        if (files.length === 1) {
-          const [singleFile] = files;
+        if (noiseFiles.length === 1) {
+          const [singleFile] = noiseFiles;
           if (!singleFile) {
             throw new Error('No file selected for noise processing.');
           }
@@ -1156,7 +1181,7 @@ export default function App() {
           });
         } else {
           const result = await processAudioBatch(
-            files,
+            noiseFiles,
             options,
             onBatchProgress,
           );
@@ -1167,7 +1192,7 @@ export default function App() {
           }));
           const url = URL.createObjectURL(result.zip.blob);
           replaceOperationResult(activeOperation, {
-            status: `Processed ${files.length} files. Ready to download ZIP.`,
+            status: `Processed ${noiseFiles.length} files. Ready to download ZIP.`,
             error: null,
             downloadUrl: url,
             downloadName: result.zip.filename,
@@ -1178,8 +1203,8 @@ export default function App() {
           });
         }
       } else if (activeOperation === 'cover') {
-        if (files.length === 1) {
-          const [singleFile] = files;
+        if (coverFiles.length === 1) {
+          const [singleFile] = coverFiles;
           if (!singleFile) {
             throw new Error('No file selected for cover extraction.');
           }
@@ -1196,7 +1221,7 @@ export default function App() {
             processing: false,
           });
         } else {
-          const result = await extractCoverBatch(files, onBatchProgress);
+          const result = await extractCoverBatch(coverFiles, onBatchProgress);
           const previewItems = result.items.map((item) => ({
             name: item.filename,
             url: URL.createObjectURL(item.blob),
@@ -1204,7 +1229,7 @@ export default function App() {
           }));
           const url = URL.createObjectURL(result.zip.blob);
           replaceOperationResult(activeOperation, {
-            status: `Extracted covers from ${files.length} files. Ready to download ZIP.`,
+            status: `Extracted covers from ${coverFiles.length} files. Ready to download ZIP.`,
             error: null,
             downloadUrl: url,
             downloadName: result.zip.filename,
@@ -1422,7 +1447,11 @@ export default function App() {
           data-operation-section="audio-file-picker"
         >
           <AudioFilePicker
-            files={files}
+            files={
+              operation === 'noise'
+                ? noiseFiles
+                : coverFiles
+            }
             dragOver={dragOver}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
