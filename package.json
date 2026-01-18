@@ -19,7 +19,7 @@
     "@types/dom-view-transitions": "^1.0.6",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "astro": "^5.16.6",
+    "astro": "^5.16.8",
     "typescript": "^5.9.3"
   },
   "dependencies": {
