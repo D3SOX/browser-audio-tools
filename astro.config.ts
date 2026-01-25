@@ -6,7 +6,7 @@ import type { Connect, Plugin, ViteDevServer } from 'vite';
 
 const coiHeaders = {
   'Cross-Origin-Opener-Policy': 'same-origin',
-  'Cross-Origin-Embedder-Policy': 'require-corp',
+  'Cross-Origin-Embedder-Policy': 'credentialless',
 };
 
 function coiHeadersPlugin(): Plugin {

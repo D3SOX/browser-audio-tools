@@ -76,7 +76,7 @@ export function NoiseOptions({ options, onChange }: NoiseOptionsProps) {
             ))}
           </select>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="switch-grid-cell">
           <Switch
             checked={!(options.prependNoise ?? false)}
             onChange={(e) => onChange('prependNoise', !e.target.checked)}
