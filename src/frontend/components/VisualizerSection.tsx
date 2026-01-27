@@ -405,7 +405,8 @@ export const VisualizerSection = forwardRef<
               </div>
               <div className="slider-group opacity-slider">
                 <label htmlFor={backgroundOpacityId}>
-                  Background opacity: {backgroundOpacity}%
+                  <span>Background opacity</span>
+                  <span className="slider-value">{backgroundOpacity}%</span>
                 </label>
                 <input
                   type="range"
