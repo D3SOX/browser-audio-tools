@@ -1,8 +1,7 @@
 {
   "extends": "astro/tsconfigs/strict",
   "compilerOptions": {
-    "types": ["astro/client", "bun", "dom-view-transitions"],
-    "baseUrl": "."
+    "types": ["astro/client", "bun", "dom-view-transitions"]
   },
-  "include": ["src", "astro.config.ts", "vercel.env.d.ts"]
+  "include": ["src", "astro.config.ts"]
 }

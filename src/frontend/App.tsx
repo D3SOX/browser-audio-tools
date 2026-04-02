@@ -30,7 +30,10 @@ import {
   detectAdblock,
 } from './utils/detectAdblock';
 
-type TrackFn = (event: string, properties?: Record<string, unknown>) => void;
+type TrackFn = (
+  event: string,
+  properties?: Record<string, string | number | boolean | null | undefined>,
+) => void;
 
 import { ActionsSection } from './components/ActionsSection';
 import { AudioFilePicker } from './components/AudioFilePicker';
