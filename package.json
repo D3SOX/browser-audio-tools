@@ -28,7 +28,7 @@
     "@ffmpeg/util": "^0.12.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "esbuild": "0.27.3",
+    "esbuild": "0.27.4",
     "fflate": "^0.8.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
