@@ -123,6 +123,19 @@ function cleanupFiles(ff: FFmpeg, names: string[]) {
   }
 }
 
+// ffmpeg.wasm's writeFile transfers the Uint8Array's underlying ArrayBuffer to
+// its worker, which detaches it for the caller. If the caller keeps a reference
+// (e.g. cover art stored in React state and reused across invocations), the
+// next call fails with "attempting to access detached ArrayBuffer". Always
+// copy before handing the buffer off so the caller's Uint8Array stays valid.
+async function writeFileCopy(
+  ff: FFmpeg,
+  path: string,
+  data: Uint8Array,
+): Promise<void> {
+  await ff.writeFile(path, data.slice());
+}
+
 function createLogCollector(ff: FFmpeg) {
   const logs: string[] = [];
   const handler = ({ message }: { message: string }) => {
@@ -192,7 +205,7 @@ export async function addNoiseAndConcat(
   const amplitude = options.noiseVolume ?? 0.05;
   const bitrate = options.bitrate ?? '192k';
 
-  await ff.writeFile(inputName, input);
+  await writeFileCopy(ff, inputName, input);
 
   const prependNoise = options.prependNoise ?? false;
 
@@ -271,7 +284,7 @@ export async function extractCover(
   const inputName = 'input.mp3';
   const outputName = 'cover.jpg';
 
-  await ff.writeFile(inputName, input);
+  await writeFileCopy(ff, inputName, input);
 
   try {
     await execWithProgress(
@@ -318,7 +331,7 @@ export async function readMetadata(
   const inputName = `meta_input.${ext}`;
   const outputName = 'metadata.txt';
 
-  await ff.writeFile(inputName, input);
+  await writeFileCopy(ff, inputName, input);
 
   try {
     await execWithProgress(
@@ -378,10 +391,10 @@ export async function retagMp3(
   const outName = outputFilename ?? 'output.mp3';
   const filesToCleanup = [inputName, outName];
 
-  await ff.writeFile(inputName, input);
+  await writeFileCopy(ff, inputName, input);
 
   if (cover) {
-    await ff.writeFile(coverName, cover);
+    await writeFileCopy(ff, coverName, cover);
     filesToCleanup.push(coverName);
   }
 
@@ -785,7 +798,7 @@ export async function convertAudio(
   const baseName = outputBaseName ?? inputFilename.replace(/\.[^.]+$/, '');
   const outName = `${baseName}.${config.ext}`;
 
-  await ff.writeFile(inputName, input);
+  await writeFileCopy(ff, inputName, input);
 
   // For OGG, try to extract cover art first to embed via METADATA_BLOCK_PICTURE
   let oggCoverArtBase64: string | null = null;
@@ -905,15 +918,15 @@ export async function convertWavToMp3WithMetadata(
   const outName = outputFilename ?? 'output.mp3';
   const filesToCleanup = [wavName, outName];
 
-  await ff.writeFile(wavName, wavInput);
+  await writeFileCopy(ff, wavName, wavInput);
 
   if (mp3Source) {
-    await ff.writeFile(mp3Name, mp3Source);
+    await writeFileCopy(ff, mp3Name, mp3Source);
     filesToCleanup.push(mp3Name);
   }
 
   if (cover) {
-    await ff.writeFile(coverName, cover);
+    await writeFileCopy(ff, coverName, cover);
     filesToCleanup.push(coverName);
   }
 
@@ -1030,7 +1043,7 @@ export async function trimAudio(
   const outputExt = options.format === 'source' ? inputExt : config.ext;
   const outName = `${baseName}_trimmed.${outputExt}`;
 
-  await ff.writeFile(inputName, input);
+  await writeFileCopy(ff, inputName, input);
 
   // For OGG, try to extract cover art first to embed via METADATA_BLOCK_PICTURE
   let oggCoverArtBase64: string | null = null;
