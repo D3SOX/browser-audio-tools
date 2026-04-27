@@ -26,6 +26,7 @@ const CORE_SINGLE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_V
 let ffmpeg: FFmpeg | null = null;
 let loadPromise: Promise<void> | null = null;
 let coreSelectionLogged = false;
+let tempFileCounter = 0;
 
 function selectCoreBaseURL(): { baseURL: string; reason: string } {
   const missing: string[] = [];
@@ -134,6 +135,12 @@ async function writeFileCopy(
   data: Uint8Array,
 ): Promise<void> {
   await ff.writeFile(path, data.slice());
+}
+
+function createTempFileName(prefix: string, extension: string): string {
+  tempFileCounter += 1;
+  const suffix = `${Date.now()}_${tempFileCounter}`;
+  return `${prefix}_${suffix}.${extension}`;
 }
 
 function createLogCollector(ff: FFmpeg) {
@@ -281,8 +288,8 @@ export async function extractCover(
 ): Promise<ProcessResult> {
   const ff = await ensureFFmpegLoaded();
 
-  const inputName = 'input.mp3';
-  const outputName = 'cover.jpg';
+  const inputName = createTempFileName('cover_input', 'mp3');
+  const outputName = createTempFileName('cover_output', 'jpg');
 
   await writeFileCopy(ff, inputName, input);
 
@@ -328,8 +335,9 @@ export async function readMetadata(
   const ff = await ensureFFmpegLoaded();
 
   const ext = inputFilename?.split('.').pop()?.toLowerCase();
-  const inputName = `meta_input.${ext}`;
-  const outputName = 'metadata.txt';
+  const safeExt = ext && /^[a-z0-9]+$/i.test(ext) ? ext : 'bin';
+  const inputName = createTempFileName('meta_input', safeExt);
+  const outputName = createTempFileName('metadata', 'txt');
 
   await writeFileCopy(ff, inputName, input);
 

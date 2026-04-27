@@ -199,6 +199,8 @@ export default function App() {
   // Request tracking refs to prevent race conditions
   const wavFileRequestIdRef = useRef<number>(0);
   const mp3SourceFileRequestIdRef = useRef<number>(0);
+  const retagFileRequestIdRef = useRef<number>(0);
+  const retagDonorFileRequestIdRef = useRef<number>(0);
 
   // Generic converter state
   const [genericConvertFiles, setGenericConvertFiles] = useState<File[]>([]);
@@ -475,12 +477,11 @@ export default function App() {
 
   const handleWavFileSelect = useCallback(
     async (nextFile: File | null) => {
+      const requestId = ++wavFileRequestIdRef.current;
       setWavFile(nextFile);
       clearResults();
 
       if (nextFile) {
-        // Increment request ID and capture it
-        const requestId = ++wavFileRequestIdRef.current;
         setLoadingWavMetadata(true);
         setWavMetadata(null);
 
@@ -511,6 +512,7 @@ export default function App() {
 
   const handleMp3SourceSelect = useCallback(
     async (nextFile: File | null) => {
+      const requestId = ++mp3SourceFileRequestIdRef.current;
       setMp3SourceFile(nextFile);
       clearResults();
       // Clean up previous MP3 source cover preview URL
@@ -521,8 +523,6 @@ export default function App() {
       setMp3SourceCoverPreviewUrl(null);
 
       if (nextFile) {
-        // Increment request ID and capture it
-        const requestId = ++mp3SourceFileRequestIdRef.current;
         setLoadingMp3SourceMetadata(true);
         setMp3SourceMetadata(null);
 
@@ -662,6 +662,7 @@ export default function App() {
 
   const handleRetagFileSelect = useCallback(
     async (nextFile: File | null) => {
+      const requestId = ++retagFileRequestIdRef.current;
       setRetagFile(nextFile);
       clearResults();
       // Clean up previous cover preview URL
@@ -670,15 +671,20 @@ export default function App() {
       }
       setRetagCover(null);
       setRetagCoverPreviewUrl(null);
+      setRetagMetadata(defaultMetadata);
 
       if (nextFile) {
         setLoadingRetagMetadata(true);
         try {
           const meta = await readMetadataFromFile(nextFile);
-          setRetagMetadata(meta);
+          if (requestId === retagFileRequestIdRef.current) {
+            setRetagMetadata(meta);
+          }
         } catch (err) {
           console.error('Failed to read metadata:', err);
-          setRetagMetadata(defaultMetadata);
+          if (requestId === retagFileRequestIdRef.current) {
+            setRetagMetadata(defaultMetadata);
+          }
         }
         // Try to extract existing cover
         try {
@@ -686,14 +692,19 @@ export default function App() {
           const coverData = new Uint8Array(
             await coverResult.blob.arrayBuffer(),
           );
-          setRetagCover(coverData);
-          setRetagCoverPreviewUrl(URL.createObjectURL(coverResult.blob));
+          if (requestId === retagFileRequestIdRef.current) {
+            setRetagCover(coverData);
+            setRetagCoverPreviewUrl(URL.createObjectURL(coverResult.blob));
+          }
         } catch {
           // No cover or extraction failed - that's fine
+        } finally {
+          if (requestId === retagFileRequestIdRef.current) {
+            setLoadingRetagMetadata(false);
+          }
         }
-        setLoadingRetagMetadata(false);
       } else {
-        setRetagMetadata(defaultMetadata);
+        setLoadingRetagMetadata(false);
       }
     },
     [clearResults, retagCoverPreviewUrl],
@@ -740,6 +751,7 @@ export default function App() {
 
   const handleDonorFileSelect = useCallback(
     async (nextFile: File | null) => {
+      const requestId = ++retagDonorFileRequestIdRef.current;
       setRetagDonorFile(nextFile);
       // Clean up previous donor cover preview URL
       if (retagDonorCoverPreviewUrl) {
@@ -753,10 +765,14 @@ export default function App() {
         setLoadingDonorMetadata(true);
         try {
           const meta = await readMetadataFromFile(nextFile);
-          setRetagDonorMetadata(meta);
+          if (requestId === retagDonorFileRequestIdRef.current) {
+            setRetagDonorMetadata(meta);
+          }
         } catch (err) {
           console.error('Failed to read donor metadata:', err);
-          setRetagDonorMetadata(null);
+          if (requestId === retagDonorFileRequestIdRef.current) {
+            setRetagDonorMetadata(null);
+          }
         }
         // Try to extract donor cover
         try {
@@ -764,11 +780,18 @@ export default function App() {
           const coverData = new Uint8Array(
             await coverResult.blob.arrayBuffer(),
           );
-          setRetagDonorCover(coverData);
-          setRetagDonorCoverPreviewUrl(URL.createObjectURL(coverResult.blob));
+          if (requestId === retagDonorFileRequestIdRef.current) {
+            setRetagDonorCover(coverData);
+            setRetagDonorCoverPreviewUrl(URL.createObjectURL(coverResult.blob));
+          }
         } catch {
           // No cover or extraction failed - that's fine
+        } finally {
+          if (requestId === retagDonorFileRequestIdRef.current) {
+            setLoadingDonorMetadata(false);
+          }
         }
+      } else {
         setLoadingDonorMetadata(false);
       }
     },
@@ -1009,6 +1032,10 @@ export default function App() {
   };
 
   const handleReset = useCallback(() => {
+    wavFileRequestIdRef.current += 1;
+    mp3SourceFileRequestIdRef.current += 1;
+    retagFileRequestIdRef.current += 1;
+    retagDonorFileRequestIdRef.current += 1;
     if (batchPreviews) {
       batchPreviews.forEach((item) => {
         URL.revokeObjectURL(item.url);
