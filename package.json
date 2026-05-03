@@ -14,7 +14,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.8",
     "@astrojs/react": "^5.0.3",
-    "@astrojs/vercel": "^10.0.4",
+    "@astrojs/vercel": "^10.0.5",
     "@biomejs/biome": "^2.4.12",
     "@types/bun": "latest",
     "@types/dom-view-transitions": "^1.0.6",
