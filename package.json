@@ -13,14 +13,14 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
-    "@astrojs/react": "^5.0.4",
-    "@astrojs/vercel": "^10.0.6",
-    "@biomejs/biome": "^2.4.14",
+    "@astrojs/react": "^5.0.5",
+    "@astrojs/vercel": "^10.0.7",
+    "@biomejs/biome": "^2.4.15",
     "@types/bun": "latest",
     "@types/dom-view-transitions": "^1.0.6",
-    "@types/react": "^19.2.14",
+    "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
-    "astro": "^6.2.1",
+    "astro": "^6.3.7",
     "typescript": "^6.0.3"
   },
   "dependencies": {
@@ -28,10 +28,10 @@
     "@ffmpeg/util": "^0.12.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "fflate": "^0.8.2",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "wavesurfer.js": "^7.12.6"
+    "fflate": "^0.8.3",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "wavesurfer.js": "^7.12.7"
   },
   "engines": {
     "node": "24.x"
