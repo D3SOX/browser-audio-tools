@@ -15,7 +15,7 @@
     "@astrojs/check": "^0.9.9",
     "@astrojs/react": "^5.0.5",
     "@astrojs/vercel": "^10.0.7",
-    "@biomejs/biome": "^2.4.15",
+    "@biomejs/biome": "^2.4.16",
     "@types/bun": "latest",
     "@types/dom-view-transitions": "^1.0.6",
     "@types/react": "^19.2.15",
