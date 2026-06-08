@@ -13,14 +13,14 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
-    "@astrojs/react": "^5.0.5",
-    "@astrojs/vercel": "^10.0.7",
-    "@biomejs/biome": "^2.4.15",
+    "@astrojs/react": "^5.0.7",
+    "@astrojs/vercel": "^10.0.8",
+    "@biomejs/biome": "^2.4.16",
     "@types/bun": "latest",
     "@types/dom-view-transitions": "^1.0.6",
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "astro": "^6.3.7",
+    "astro": "^6.4.4",
     "typescript": "^6.0.3"
   },
   "dependencies": {
@@ -29,8 +29,8 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "fflate": "^0.8.3",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "wavesurfer.js": "^7.12.7"
   },
   "engines": {
