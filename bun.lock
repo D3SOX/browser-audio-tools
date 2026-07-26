@@ -12,7 +12,7 @@
         "fflate": "^0.8.3",
         "react": "^19.2.7",
         "react-dom": "^19.2.7",
-        "wavesurfer.js": "^7.12.10",
+        "wavesurfer.js": "^7.12.11",
       },
       "devDependencies": {
         "@astrojs/check": "^0.9.9",
@@ -947,7 +947,7 @@
 
     "vscode-uri": ["vscode-uri@3.1.0", "", {}, "sha512-/BpdSx+yCQGnCvecbyXdxHDkuk55/G3xwnC0GqY4gmQ3j+A+g8kzzgB4Nk/SINjqn6+waqw3EgbVF2QKExkRxQ=="],
 
-    "wavesurfer.js": ["wavesurfer.js@7.12.10", "", {}, "sha512-M3AC5biFmvfy7Oxe8FN6I88H0z1c8Vuz81N6Oq2CY4kOumNDb6U1/0qg4pomjP619vJqdWADlgUcpOKvfGifng=="],
+    "wavesurfer.js": ["wavesurfer.js@7.12.11", "", {}, "sha512-Sx0yZIz7jRJ9J9p7UL+pl9y0UQBB6UN/XNo+R7Gy4tCR5xZI9jMyA0dnt1R8TMVSQ4LZ10SeB2HJYQ+dV2dPSA=="],
 
     "webidl-conversions": ["webidl-conversions@3.0.1", "", {}, "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ=="],
 
