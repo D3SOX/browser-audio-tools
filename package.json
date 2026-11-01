@@ -28,7 +28,7 @@
     "fflate": "^0.8.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "wavesurfer.js": "^7.12.11"
+    "wavesurfer.js": "^8.0.3"
   },
   "engines": {
     "node": "24.x"
