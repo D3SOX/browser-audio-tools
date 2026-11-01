@@ -2,21 +2,11 @@ import type { ChangeEvent, DragEvent, KeyboardEvent } from 'react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.js';
-import type { OutputFormat, TrimOutputFormat } from '../api';
+import type { OutputFormat, TrimOptions, TrimOutputFormat } from '../api';
 import { formatSupportsCoverArt } from '../api';
 import { BITRATE_OPTIONS } from '../types';
 import { formatSize } from '../utils/formatSize';
 import { Checkbox } from './Checkbox';
-
-export interface TrimOptions {
-  startTime: number;
-  endTime: number;
-  format: TrimOutputFormat;
-  bitrate: string;
-  removeSilence: boolean;
-  silenceThreshold: number; // dB
-  silenceDuration: number; // seconds
-}
 
 type TrimSectionProps = {
   file: File | null;
@@ -95,6 +85,7 @@ export function TrimSection({
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [startTimeInput, setStartTimeInput] = useState('0:00.00');
   const [endTimeInput, setEndTimeInput] = useState('0:00.00');
   const [volume, setVolume] = useState(1.0);
@@ -143,6 +134,7 @@ export function TrimSection({
     }
 
     setIsLoading(true);
+    setLoadError(null);
 
     // Create regions plugin
     const regions = RegionsPlugin.create();
@@ -167,7 +159,18 @@ export function TrimSection({
 
     // Load the file
     const url = URL.createObjectURL(file);
-    ws.load(url);
+    const handleLoadError = (error: unknown) => {
+      // Errors after destroy() (switching files) are expected
+      if (wavesurferRef.current !== ws) return;
+      console.error('Failed to load waveform:', error);
+      setIsLoading(false);
+      setLoadError(
+        "Could not load this file. It may be damaged or in a format your browser can't play.",
+      );
+    };
+    // Media errors (e.g. unsupported files) only emit "error"; load() never settles.
+    ws.on('error', handleLoadError);
+    ws.load(url).catch(handleLoadError);
 
     ws.on('ready', () => {
       setIsLoading(false);
@@ -264,20 +267,7 @@ export function TrimSection({
   };
 
   const playSelection = () => {
-    if (!wavesurferRef.current) return;
-    wavesurferRef.current.setTime(options.startTime);
-    wavesurferRef.current.play();
-    // Stop at end of selection
-    const checkEnd = () => {
-      if (
-        wavesurferRef.current &&
-        wavesurferRef.current.getCurrentTime() >= options.endTime
-      ) {
-        wavesurferRef.current.pause();
-        wavesurferRef.current.un('timeupdate', checkEnd);
-      }
-    };
-    wavesurferRef.current.on('timeupdate', checkEnd);
+    regionsRef.current?.getRegions()[0]?.play(true);
   };
 
   const selectAll = () => {
@@ -375,6 +365,11 @@ export function TrimSection({
             {isLoading && (
               <div className="waveform-loading">
                 <span className="spinner" /> Loading waveform...
+              </div>
+            )}
+            {loadError && (
+              <div className="status-message error" role="alert">
+                {loadError}
               </div>
             )}
             <div ref={waveformRef} className="waveform" />
@@ -517,13 +512,16 @@ export function TrimSection({
             </div>
 
             {(() => {
-              const isPassthrough = options.format === 'source';
+              // Keeping the original format copies the audio unless silence
+              // removal forces a re-encode.
+              const isPassthrough =
+                options.format === 'source' && !options.removeSilence;
               const disableBitrate = isLosslessFormat || isPassthrough;
               return (
                 <div
                   className={`input-group ${disableBitrate ? 'input-group-disabled' : ''}`}
                 >
-                  <label htmlFor="trimBitrate" className="label-with-tooltip">
+                  <label htmlFor={bitrateId} className="label-with-tooltip">
                     <span>Bitrate</span>
                     {disableBitrate && (
                       <span

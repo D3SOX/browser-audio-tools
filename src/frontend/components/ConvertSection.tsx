@@ -206,7 +206,7 @@ export function ConvertSection({
               }
               disabled={isLosslessFormat}
             >
-              <option value="">Preserve original</option>
+              <option value="">Encoder default</option>
               {BITRATE_OPTIONS.map((bitrate) => (
                 <option key={bitrate} value={bitrate}>
                   {bitrate.replace('k', '')} kbps

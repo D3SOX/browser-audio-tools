@@ -51,6 +51,7 @@ export const VisualizerSection = function VisualizerSection({
   const barGapId = useId();
   const barHeightId = useId();
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Color options
   const [waveColor, setWaveColor] = useState('#818cf8');
@@ -138,6 +139,7 @@ export const VisualizerSection = function VisualizerSection({
     }
 
     setIsLoading(true);
+    setLoadError(null);
 
     // Clear the container first
     if (waveformRef.current) {
@@ -163,7 +165,18 @@ export const VisualizerSection = function VisualizerSection({
 
     const url = URL.createObjectURL(file);
     fileUrlRef.current = url;
-    ws.load(url);
+    const handleLoadError = (error: unknown) => {
+      // Errors after destroy() (switching files) are expected
+      if (wavesurferRef.current !== ws) return;
+      console.error('Failed to load waveform:', error);
+      setIsLoading(false);
+      setLoadError(
+        "Could not load this file. It may be damaged or in a format your browser can't play.",
+      );
+    };
+    // Media errors (e.g. unsupported files) only emit "error"; load() never settles.
+    ws.on('error', handleLoadError);
+    ws.load(url).catch(handleLoadError);
 
     ws.on('ready', () => {
       setIsLoading(false);
@@ -195,8 +208,11 @@ export const VisualizerSection = function VisualizerSection({
   }, [waveColor, normalize, barWidth, barGap, barHeight]);
 
   const exportToPng = useCallback(async (): Promise<VisualizerExportResult> => {
-    if (!wavesurferRef.current) {
-      throw new Error('Waveform not ready');
+    if (loadError) {
+      throw new Error(loadError);
+    }
+    if (!wavesurferRef.current || isLoading) {
+      throw new Error('The waveform is still loading. Try again in a moment.');
     }
 
     // Use WaveSurfer's built-in exportImage method
@@ -248,7 +264,7 @@ export const VisualizerSection = function VisualizerSection({
         resolve({ blob, filename });
       }, 'image/png');
     });
-  }, [file, backgroundColor, backgroundOpacity]);
+  }, [file, backgroundColor, backgroundOpacity, isLoading, loadError]);
 
   // Expose export function to parent via ref
   useImperativeHandle(
@@ -483,6 +499,11 @@ export const VisualizerSection = function VisualizerSection({
             {isLoading && (
               <div className="waveform-loading">
                 <span className="spinner" /> Loading waveform...
+              </div>
+            )}
+            {loadError && (
+              <div className="status-message error" role="alert">
+                {loadError}
               </div>
             )}
             <div ref={waveformRef} className="waveform visualizer-waveform" />

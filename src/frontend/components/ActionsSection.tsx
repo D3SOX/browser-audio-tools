@@ -56,16 +56,13 @@ export function ActionsSection({
                 ? 'Generate PNG'
                 : `Convert to ${genericConvertOptions.format.toUpperCase()}`;
 
-  // Trim has extra sections so the step number is 5
-  // retag-wav and retag have the output filename section so step is 5
-  // visualize has 3 sections before run so step is 4
-  // Other operations have 3 sections before run so step is 4
+  // Trim has extra sections, and retag-wav and retag have the output filename
+  // section, so the step number is 5. Other operations have 3 sections before
+  // run, so the step is 4.
   const stepNumber =
     operation === 'trim' || operation === 'retag-wav' || operation === 'retag'
       ? 5
-      : operation === 'visualize'
-        ? 4
-        : 4;
+      : 4;
 
   return (
     <section className="section">
@@ -116,8 +113,12 @@ export function ActionsSection({
         )}
       </div>
 
-      {status && <div className="status-message success">{status}</div>}
-      {error && <div className="status-message error">{error}</div>}
+      <div role="status">
+        {status && <div className="status-message success">{status}</div>}
+      </div>
+      <div role="alert">
+        {error && <div className="status-message error">{error}</div>}
+      </div>
 
       {downloadUrl && downloadName && (
         <div className="result-card">
