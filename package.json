@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
-    "@astrojs/react": "^6.0.2",
+    "@astrojs/react": "^7.1.1",
     "@astrojs/vercel": "^11.0.5",
     "@biomejs/biome": "^2.5.8",
     "@types/bun": "^1.4.4",
