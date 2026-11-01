@@ -36,6 +36,7 @@ function coiHeadersPlugin(): Plugin {
 }
 
 export default defineConfig({
+  site: 'https://browser-audio-tools.d3sox.me',
   adapter: vercel({}),
   integrations: [react()],
   vite: {

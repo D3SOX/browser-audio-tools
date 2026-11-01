@@ -5,17 +5,16 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import '../frontend/styles.css';
 
 const title = 'Browser Audio Tools';
-const description =
-  'Various tools for client-side audio processing';
+const subtitle = 'Various tools for client-side audio processing';
 ---
 
-<BaseLayout {title} {description}>
+<BaseLayout {title}>
   <div class="app-wrapper">
     <div class="app-container">
       <header class="hero">
         <div class="hero-content">
           <h1 class="hero-title">{title}</h1>
-          <p class="hero-subtitle">{description}</p>
+          <p class="hero-subtitle">{subtitle}</p>
           <div class="hero-actions">
             <a
               class="github-link"
