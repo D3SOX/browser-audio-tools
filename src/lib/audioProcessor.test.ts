@@ -221,6 +221,7 @@ describe('FFmpeg jobs', () => {
     expect(args).toContain('title=New');
     expect(args).toContain('artist=');
     expect(args).toContain('date=');
+    expect(args).toContain('year=');
   });
 
   test('retag WAV copies the source cover without re-encoding', async () => {

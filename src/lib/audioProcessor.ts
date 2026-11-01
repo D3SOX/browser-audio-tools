@@ -488,6 +488,8 @@ function metadataArgs(metadata: Partial<ID3Metadata>): string[] {
     // An empty value removes the tag.
     if (value !== undefined) {
       args.push('-metadata', `${tag}=${value}`);
+      // Some files store the year as "year", which parseFFMetadata also reads.
+      if (field === 'year') args.push('-metadata', 'year=');
     }
   }
   return args;
