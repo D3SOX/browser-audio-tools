@@ -1,5 +1,4 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { toBlobURL } from '@ffmpeg/util';
 
 export type ProgressCallback = (progress: { percent: number }) => void;
 
@@ -19,16 +18,34 @@ export interface ProcessResult {
   mime: string;
 }
 
+// Core files are pinned by version and verified with Subresource Integrity.
+// The single-threaded core has no separate worker file.
 const CORE_VERSION = '0.12.10';
-const CORE_MT_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@${CORE_VERSION}/dist/esm`;
-const CORE_SINGLE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/esm`;
+const CORES = {
+  multi: {
+    baseURL: `https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@${CORE_VERSION}/dist/esm`,
+    js: 'sha384-CqK+fB7O3Dl0SbCkpBiLNrSGeKVUCxa/mwPUPzOGLIQwVNBZEO3OOBhsTz6WqRw3',
+    wasm: 'sha384-IXnr5PE2UFcQ5DvI5LyubPqmMF46EkyIMlbdn4CNQR1iQ8/2irEkyhDFnVDxv4f/',
+    worker:
+      'sha384-mH8cZ9JWsDxI1nYKmKMTA3qGV40dhtv4c6nOLSi5O2rr+0bx3pzHPIkIi6++JFye',
+  },
+  single: {
+    baseURL: `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/esm`,
+    js: 'sha384-9KlAmgHu5wDqdgQvFhQGZOtKdCwGcMppDhM/kBkUpZ5LS7KGuAHbE+NgtJQEf84i',
+    wasm: 'sha384-U1VDhkPYrM3wTCT4/vjSpSsKqG/UjljYrYCI4hBSJ02svbCkxuCi6U6u/peg5vpW',
+    worker: null,
+  },
+} as const;
 
 let ffmpeg: FFmpeg | null = null;
 let loadPromise: Promise<void> | null = null;
-let coreSelectionLogged = false;
+let jobQueue: Promise<unknown> = Promise.resolve();
 let tempFileCounter = 0;
 
-function selectCoreBaseURL(): { baseURL: string; reason: string } {
+function selectCore(): {
+  core: (typeof CORES)[keyof typeof CORES];
+  reason: string;
+} {
   const missing: string[] = [];
   if (typeof SharedArrayBuffer === 'undefined') {
     missing.push('SharedArrayBuffer');
@@ -43,26 +60,36 @@ function selectCoreBaseURL(): { baseURL: string; reason: string } {
 
   if (missing.length === 0) {
     return {
-      baseURL: CORE_MT_BASE_URL,
+      core: CORES.multi,
       reason:
         'Using multi-threaded core: crossOriginIsolated with SAB/Atomics available.',
     };
   }
 
   return {
-    baseURL: CORE_SINGLE_BASE_URL,
+    core: CORES.single,
     reason: `Falling back to single-threaded core: missing ${missing.join(', ')}.`,
   };
 }
 
 function translateFFmpegLoadError(error: unknown): Error {
-  if (error instanceof Error) {
-    return new Error(
-      `FFmpeg failed to load. A content or privacy blocker may be blocking blob: scripts. Try disabling blockers for this site or use a different browser. Error: ${error.message}`,
-    );
-  }
+  const message = error instanceof Error ? error.message : String(error);
   return new Error(
-    `FFmpeg failed to load. A content or privacy blocker may be blocking blob: scripts. Try disabling blockers for this site or use a different browser. Error: ${String(error)}`,
+    `FFmpeg failed to load. A content or privacy blocker may be blocking blob: scripts. Try disabling blockers for this site or use a different browser. Error: ${message}`,
+  );
+}
+
+async function fetchBlobURL(
+  url: string,
+  type: string,
+  integrity: string,
+): Promise<string> {
+  const response = await fetch(url, { integrity });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url}: HTTP ${response.status}`);
+  }
+  return URL.createObjectURL(
+    new Blob([await response.arrayBuffer()], { type }),
   );
 }
 
@@ -72,33 +99,38 @@ async function ensureFFmpegLoaded(): Promise<FFmpeg> {
   if (!loadPromise) {
     loadPromise = (async () => {
       try {
-        const { baseURL: coreBaseURL, reason } = selectCoreBaseURL();
-        if (!coreSelectionLogged) {
-          console.info('[ffmpeg] core selection', {
-            version: CORE_VERSION,
-            core: coreBaseURL.includes('core-mt')
-              ? 'core-mt (multi-threaded)'
-              : 'core (single-threaded)',
-            reason,
-          });
-          coreSelectionLogged = true;
-        }
         // In preview/static hosting environments we may not be cross-origin
         // isolated, so fall back to the single-threaded core to avoid
         // SharedArrayBuffer errors.
+        const { core, reason } = selectCore();
+        console.info('[ffmpeg] core selection', {
+          version: CORE_VERSION,
+          core:
+            core === CORES.multi
+              ? 'core-mt (multi-threaded)'
+              : 'core (single-threaded)',
+          reason,
+        });
         ffmpeg = new FFmpeg();
-        const coreURL = await toBlobURL(
-          `${coreBaseURL}/ffmpeg-core.js`,
-          'text/javascript',
-        );
-        const wasmURL = await toBlobURL(
-          `${coreBaseURL}/ffmpeg-core.wasm`,
-          'application/wasm',
-        );
-        const workerURL = await toBlobURL(
-          `${coreBaseURL}/ffmpeg-core.worker.js`,
-          'text/javascript',
-        );
+        const [coreURL, wasmURL, workerURL] = await Promise.all([
+          fetchBlobURL(
+            `${core.baseURL}/ffmpeg-core.js`,
+            'text/javascript',
+            core.js,
+          ),
+          fetchBlobURL(
+            `${core.baseURL}/ffmpeg-core.wasm`,
+            'application/wasm',
+            core.wasm,
+          ),
+          core.worker
+            ? fetchBlobURL(
+                `${core.baseURL}/ffmpeg-core.worker.js`,
+                'text/javascript',
+                core.worker,
+              )
+            : undefined,
+        ]);
         await ffmpeg.load({ coreURL, wasmURL, workerURL });
       } catch (error) {
         ffmpeg = null;
@@ -114,21 +146,34 @@ async function ensureFFmpegLoaded(): Promise<FFmpeg> {
   return ffmpeg;
 }
 
-function cleanupFiles(ff: FFmpeg, names: string[]) {
-  for (const name of names) {
+/**
+ * Run a job with exclusive access to FFmpeg. ffmpeg.wasm has one worker and
+ * one in-memory file system, so overlapping jobs would mix up progress events
+ * and could delete each other's files. Jobs run one after another instead.
+ */
+function withFFmpeg<T>(job: (ff: FFmpeg) => Promise<T>): Promise<T> {
+  const run = jobQueue.then(async () => {
     try {
-      ff.deleteFile(name);
-    } catch {
-      // ignore
+      return await job(await ensureFFmpegLoaded());
+    } catch (error) {
+      // The ffmpeg.wasm worker rejects with plain strings.
+      throw error instanceof Error ? error : new Error(String(error));
     }
-  }
+  });
+  jobQueue = run.catch(() => {});
+  return run;
+}
+
+async function cleanupFiles(ff: FFmpeg, names: string[]): Promise<void> {
+  // Some files never get created (e.g. output of a failed run).
+  await Promise.allSettled(names.map((name) => ff.deleteFile(name)));
 }
 
 // ffmpeg.wasm's writeFile transfers the Uint8Array's underlying ArrayBuffer to
 // its worker, which detaches it for the caller. If the caller keeps a reference
 // (e.g. cover art stored in React state and reused across invocations), the
-// next call fails with "attempting to access detached ArrayBuffer". Always
-// copy before handing the buffer off so the caller's Uint8Array stays valid.
+// next call fails with "attempting to access detached ArrayBuffer". Copy
+// buffers the caller keeps before handing them off.
 async function writeFileCopy(
   ff: FFmpeg,
   path: string,
@@ -139,81 +184,89 @@ async function writeFileCopy(
 
 function createTempFileName(prefix: string, extension: string): string {
   tempFileCounter += 1;
-  const suffix = `${Date.now()}_${tempFileCounter}`;
-  return `${prefix}_${suffix}.${extension}`;
+  return `${prefix}_${tempFileCounter}.${extension}`;
 }
 
-function createLogCollector(ff: FFmpeg) {
-  const logs: string[] = [];
-  const handler = ({ message }: { message: string }) => {
-    if (logs.length >= 50) {
-      logs.shift();
-    }
-    logs.push(message);
-  };
-  return {
-    attach() {
-      ff.on('log', handler);
-    },
-    detach() {
-      ff.off('log', handler);
-    },
-    tail(count = 10) {
-      return logs.slice(-count);
-    },
-  };
+function getSafeExtension(filename: string, fallback: string): string {
+  const ext = filename.includes('.')
+    ? filename.split('.').pop()?.toLowerCase()
+    : undefined;
+  return ext && /^[a-z0-9]+$/.test(ext) ? ext : fallback;
 }
 
+/**
+ * Run FFmpeg and fail when it exits with a non-zero code. Returns the last
+ * log lines, which help explain empty output.
+ */
 async function execWithProgress(
   ff: FFmpeg,
   args: string[],
   onProgress?: ProgressCallback,
-): Promise<void> {
+): Promise<string[]> {
   let lastPercent = -1;
+  const logs: string[] = [];
 
-  const handler = onProgress
-    ? ({ progress }: { progress: number }) => {
-        // Clamp to 0-99 (we'll set 100 on completion)
-        const percent = Math.max(0, Math.min(99, Math.round(progress * 100)));
-        // Only emit if changed to reduce re-renders
-        if (percent !== lastPercent) {
-          lastPercent = percent;
-          onProgress({ percent });
-        }
-      }
-    : undefined;
+  const logHandler = ({ message }: { message: string }) => {
+    if (logs.length >= 10) {
+      logs.shift();
+    }
+    logs.push(message);
+  };
 
-  if (handler) {
-    ff.on('progress', handler);
+  const progressHandler = ({ progress }: { progress: number }) => {
+    // Clamp to 0-99 (we'll set 100 on completion)
+    const percent = Math.max(0, Math.min(99, Math.round(progress * 100)));
+    // Only emit if changed to reduce re-renders
+    if (percent !== lastPercent) {
+      lastPercent = percent;
+      onProgress?.({ percent });
+    }
+  };
+
+  ff.on('log', logHandler);
+  if (onProgress) {
+    ff.on('progress', progressHandler);
   }
 
   try {
-    await ff.exec(args);
+    const exitCode = await ff.exec(args);
+    if (exitCode !== 0) {
+      throw new Error(
+        `FFmpeg failed with exit code ${exitCode}.${formatLogDetails(logs)}`,
+      );
+    }
     // Signal completion
     onProgress?.({ percent: 100 });
+    return logs;
   } finally {
-    if (handler) {
-      ff.off('progress', handler);
+    ff.off('log', logHandler);
+    if (onProgress) {
+      ff.off('progress', progressHandler);
     }
   }
 }
 
-export async function addNoiseAndConcat(
+function formatLogDetails(logs: string[]): string {
+  return logs.length > 0 ? ` Details: ${logs.join(' | ')}` : '';
+}
+
+async function readOutputFile(ff: FFmpeg, path: string): Promise<Uint8Array> {
+  const data = await ff.readFile(path);
+  if (!(data instanceof Uint8Array)) {
+    throw new Error('Unexpected ffmpeg output');
+  }
+  return data;
+}
+
+export function addNoiseAndConcat(
   input: Uint8Array,
   options: NoiseOptions = {},
   onProgress?: ProgressCallback,
 ): Promise<ProcessResult> {
-  const ff = await ensureFFmpegLoaded();
-
-  const inputName = 'input.mp3';
-  const outputName = 'output.mp3';
   const noiseColor: NoiseType = options.noiseType ?? 'pink';
   const duration = Math.max(1, options.durationSeconds ?? 180);
   const amplitude = options.noiseVolume ?? 0.05;
   const bitrate = options.bitrate ?? '192k';
-
-  await writeFileCopy(ff, inputName, input);
-
   const prependNoise = options.prependNoise ?? false;
 
   let filterComplex: string;
@@ -238,84 +291,75 @@ export async function addNoiseAndConcat(
     }
   }
 
-  try {
-    await execWithProgress(
-      ff,
-      [
-        '-f',
-        'lavfi',
-        '-i',
-        `anoisesrc=color=${noiseColor}:duration=${duration}:amplitude=${amplitude}`,
-        '-i',
-        inputName,
-        '-filter_complex',
-        filterComplex,
-        '-map',
-        '[aout]',
-        '-c:a',
-        'libmp3lame',
-        '-b:a',
-        bitrate,
-        '-y',
-        outputName,
-      ],
-      onProgress,
-    );
-
-    const data = await ff.readFile(outputName);
-    if (!(data instanceof Uint8Array)) {
-      throw new Error('Unexpected ffmpeg output');
+  return withFFmpeg(async (ff) => {
+    const inputName = createTempFileName('noise_input', 'mp3');
+    const outputName = createTempFileName('noise_output', 'mp3');
+    try {
+      await ff.writeFile(inputName, input);
+      await execWithProgress(
+        ff,
+        [
+          '-f',
+          'lavfi',
+          '-i',
+          `anoisesrc=color=${noiseColor}:duration=${duration}:amplitude=${amplitude}`,
+          '-i',
+          inputName,
+          '-filter_complex',
+          filterComplex,
+          '-map',
+          '[aout]',
+          '-c:a',
+          'libmp3lame',
+          '-b:a',
+          bitrate,
+          '-y',
+          outputName,
+        ],
+        onProgress,
+      );
+      return {
+        data: await readOutputFile(ff, outputName),
+        filename: 'output.mp3',
+        mime: 'audio/mpeg',
+      };
+    } finally {
+      await cleanupFiles(ff, [inputName, outputName]);
     }
-    return {
-      data,
-      filename: outputName,
-      mime: 'audio/mpeg',
-    };
-  } catch (error) {
-    throw new Error(
-      error instanceof Error
-        ? error.message
-        : 'Failed to process audio with ffmpeg.wasm',
-    );
-  } finally {
-    cleanupFiles(ff, [inputName, outputName]);
-  }
+  });
 }
 
-export async function extractCover(
+export function extractCover(
   input: Uint8Array,
   onProgress?: ProgressCallback,
 ): Promise<ProcessResult> {
-  const ff = await ensureFFmpegLoaded();
-
-  const inputName = createTempFileName('cover_input', 'mp3');
-  const outputName = createTempFileName('cover_output', 'jpg');
-
-  await writeFileCopy(ff, inputName, input);
-
-  try {
-    await execWithProgress(
-      ff,
-      ['-i', inputName, '-an', '-vcodec', 'copy', '-y', outputName],
-      onProgress,
-    );
-    const data = await ff.readFile(outputName);
-    if (!(data instanceof Uint8Array)) {
-      throw new Error('Unexpected ffmpeg output');
+  return withFFmpeg(async (ff) => {
+    const inputName = createTempFileName('cover_input', 'mp3');
+    const outputName = createTempFileName('cover_output', 'jpg');
+    try {
+      await ff.writeFile(inputName, input);
+      try {
+        await execWithProgress(
+          ff,
+          ['-i', inputName, '-an', '-vcodec', 'copy', '-y', outputName],
+          onProgress,
+        );
+      } catch (error) {
+        throw new Error(
+          `No embedded cover art found. ${error instanceof Error ? error.message : ''}`.trim(),
+        );
+      }
+      const data = await readOutputFile(ff, outputName);
+      const mime = detectImageMimeType(data);
+      return {
+        data,
+        filename: `cover.${IMAGE_EXTENSIONS[mime]}`,
+        mime,
+      };
+    } finally {
+      await cleanupFiles(ff, [inputName, outputName]);
     }
-
-    return {
-      data,
-      filename: outputName,
-      mime: 'image/jpeg',
-    };
-  } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : 'Failed to extract cover image',
-    );
-  } finally {
-    cleanupFiles(ff, [inputName, outputName]);
-  }
+  });
 }
 
 export interface ID3Metadata {
@@ -327,166 +371,188 @@ export interface ID3Metadata {
   genre?: string;
 }
 
-export async function readMetadata(
+/**
+ * Parse the global tags of an FFMETADATA file. Values may contain escaped
+ * `=`, `;`, `#`, `\` and newline characters. Stream and chapter sections
+ * follow the global tags and are ignored.
+ */
+export function parseFFMetadata(text: string): ID3Metadata {
+  const metadata: ID3Metadata = {
+    title: '',
+    artist: '',
+    album: '',
+    year: '',
+    track: '',
+    genre: '',
+  };
+
+  let pending = '';
+  for (const rawLine of text.split('\n')) {
+    if (!pending) {
+      if (rawLine.startsWith('[')) break;
+      if (rawLine.startsWith(';') || rawLine.startsWith('#')) continue;
+    }
+    const line = pending + rawLine;
+    // An odd number of trailing backslashes escapes the newline, so the value
+    // continues on the next line.
+    const trailingBackslashes = line.length - line.replace(/\\+$/, '').length;
+    if (trailingBackslashes % 2 === 1) {
+      pending = `${line.slice(0, -1)}\n`;
+      continue;
+    }
+    pending = '';
+
+    let key = '';
+    let value = '';
+    let inValue = false;
+    for (let i = 0; i < line.length; i++) {
+      let char = line[i];
+      if (char === '\\' && i + 1 < line.length) {
+        i++;
+        char = line[i];
+      } else if (char === '=' && !inValue) {
+        inValue = true;
+        continue;
+      }
+      if (inValue) value += char;
+      else key += char;
+    }
+    if (!inValue) continue;
+
+    switch (key.trim().toLowerCase()) {
+      case 'title':
+        metadata.title = value;
+        break;
+      case 'artist':
+        metadata.artist = value;
+        break;
+      case 'album':
+        metadata.album = value;
+        break;
+      case 'date':
+      case 'year':
+        metadata.year = value;
+        break;
+      case 'track':
+        metadata.track = value;
+        break;
+      case 'genre':
+        metadata.genre = value;
+        break;
+    }
+  }
+
+  return metadata;
+}
+
+export function readMetadata(
   input: Uint8Array,
   inputFilename: string,
   onProgress?: ProgressCallback,
 ): Promise<ID3Metadata> {
-  const ff = await ensureFFmpegLoaded();
-
-  const ext = inputFilename?.split('.').pop()?.toLowerCase();
-  const safeExt = ext && /^[a-z0-9]+$/i.test(ext) ? ext : 'bin';
-  const inputName = createTempFileName('meta_input', safeExt);
-  const outputName = createTempFileName('metadata', 'txt');
-
-  await writeFileCopy(ff, inputName, input);
-
-  try {
-    await execWithProgress(
-      ff,
-      ['-i', inputName, '-f', 'ffmetadata', '-y', outputName],
-      onProgress,
+  return withFFmpeg(async (ff) => {
+    const inputName = createTempFileName(
+      'meta_input',
+      getSafeExtension(inputFilename, 'bin'),
     );
-    const data = await ff.readFile(outputName);
-    const text =
-      data instanceof Uint8Array
-        ? new TextDecoder().decode(data)
-        : (data as string);
-
-    const metadata: ID3Metadata = {
-      title: '',
-      artist: '',
-      album: '',
-      year: '',
-      track: '',
-      genre: '',
-    };
-
-    for (const line of text.split('\n')) {
-      const eqIndex = line.indexOf('=');
-      if (eqIndex === -1) continue;
-      const key = line.slice(0, eqIndex).toLowerCase().trim();
-      const value = line.slice(eqIndex + 1).trim();
-      if (key === 'title') metadata.title = value;
-      else if (key === 'artist') metadata.artist = value;
-      else if (key === 'album') metadata.album = value;
-      else if (key === 'date' || key === 'year') metadata.year = value;
-      else if (key === 'track') metadata.track = value;
-      else if (key === 'genre') metadata.genre = value;
+    const outputName = createTempFileName('metadata', 'txt');
+    try {
+      await ff.writeFile(inputName, input);
+      await execWithProgress(
+        ff,
+        ['-i', inputName, '-f', 'ffmetadata', '-y', outputName],
+        onProgress,
+      );
+      const data = await ff.readFile(outputName);
+      const text =
+        data instanceof Uint8Array ? new TextDecoder().decode(data) : data;
+      return parseFFMetadata(text);
+    } finally {
+      await cleanupFiles(ff, [inputName, outputName]);
     }
-
-    return metadata;
-  } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : 'Failed to read metadata',
-    );
-  } finally {
-    cleanupFiles(ff, [inputName, outputName]);
-  }
+  });
 }
 
-export async function retagMp3(
+function metadataArgs(metadata: Partial<ID3Metadata>): string[] {
+  const fields: [keyof ID3Metadata, string][] = [
+    ['title', 'title'],
+    ['artist', 'artist'],
+    ['album', 'album'],
+    ['year', 'date'],
+    ['track', 'track'],
+    ['genre', 'genre'],
+  ];
+  const args: string[] = [];
+  for (const [field, tag] of fields) {
+    const value = metadata[field];
+    // An empty value removes the tag.
+    if (value !== undefined) {
+      args.push('-metadata', `${tag}=${value}`);
+    }
+  }
+  return args;
+}
+
+export function retagMp3(
   input: Uint8Array,
   metadata: ID3Metadata,
   outputFilename?: string,
   onProgress?: ProgressCallback,
   cover?: Uint8Array,
 ): Promise<ProcessResult> {
-  const ff = await ensureFFmpegLoaded();
+  return withFFmpeg(async (ff) => {
+    const inputName = createTempFileName('retag_input', 'mp3');
+    const coverName = createTempFileName('retag_cover', 'img');
+    const outputName = createTempFileName('retag_output', 'mp3');
+    try {
+      await ff.writeFile(inputName, input);
+      const args = ['-i', inputName];
+      if (cover) {
+        await writeFileCopy(ff, coverName, cover);
+        args.push('-i', coverName);
+      }
 
-  const inputName = 'input.mp3';
-  const coverName = 'cover.jpg';
-  const outName = outputFilename ?? 'output.mp3';
-  const filesToCleanup = [inputName, outName];
+      args.push(
+        '-map',
+        '0:a',
+        '-c:a',
+        'copy',
+        '-id3v2_version',
+        '3',
+        // Keep tags the form doesn't show (album artist, lyrics, ...).
+        '-map_metadata',
+        '0',
+      );
 
-  await writeFileCopy(ff, inputName, input);
+      if (cover) {
+        args.push(
+          '-map',
+          '1:v',
+          '-c:v',
+          'copy',
+          '-metadata:s:v',
+          'title=Album cover',
+          '-metadata:s:v',
+          'comment=Cover (front)',
+        );
+      }
 
-  if (cover) {
-    await writeFileCopy(ff, coverName, cover);
-    filesToCleanup.push(coverName);
-  }
+      args.push(...metadataArgs(metadata), '-y', outputName);
 
-  const args = ['-i', inputName];
-
-  if (cover) {
-    args.push('-i', coverName);
-  }
-
-  args.push(
-    '-map',
-    '0:a',
-    '-c:a',
-    'copy',
-    '-id3v2_version',
-    '3',
-    '-map_metadata',
-    '-1', // Clear existing metadata
-  );
-
-  if (cover) {
-    args.push(
-      '-map',
-      '1:v',
-      '-c:v',
-      'copy',
-      '-metadata:s:v',
-      'title=Album cover',
-      '-metadata:s:v',
-      'comment=Cover (front)',
-    );
-  }
-
-  if (metadata.title) {
-    args.push('-metadata', `title=${metadata.title}`);
-  }
-  if (metadata.artist) {
-    args.push('-metadata', `artist=${metadata.artist}`);
-  }
-  if (metadata.album) {
-    args.push('-metadata', `album=${metadata.album}`);
-  }
-  if (metadata.year) {
-    args.push('-metadata', `date=${metadata.year}`);
-  }
-  if (metadata.track) {
-    args.push('-metadata', `track=${metadata.track}`);
-  }
-  if (metadata.genre) {
-    args.push('-metadata', `genre=${metadata.genre}`);
-  }
-
-  args.push('-y', outName);
-
-  try {
-    await execWithProgress(ff, args, onProgress);
-    const data = await ff.readFile(outName);
-    if (!(data instanceof Uint8Array)) {
-      throw new Error('Unexpected ffmpeg output');
+      await execWithProgress(ff, args, onProgress);
+      return {
+        data: await readOutputFile(ff, outputName),
+        filename: outputFilename ?? 'output.mp3',
+        mime: 'audio/mpeg',
+      };
+    } finally {
+      await cleanupFiles(ff, [inputName, coverName, outputName]);
     }
-    return {
-      data,
-      filename: outName,
-      mime: 'audio/mpeg',
-    };
-  } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : 'Failed to retag MP3',
-    );
-  } finally {
-    cleanupFiles(ff, filesToCleanup);
-  }
+  });
 }
 
-export interface ConvertOptions {
-  title?: string;
-  artist?: string;
-  album?: string;
-  year?: string;
-  track?: string;
-  genre?: string;
-}
+export type ConvertOptions = Partial<ID3Metadata>;
 
-// Generic converter types (AAC removed due to wasm encoder issues)
 export type OutputFormat = 'mp3' | 'ogg' | 'aac' | 'wav' | 'flac' | 'aiff';
 export type TrimOutputFormat = OutputFormat | 'source';
 export type SampleRate = 44100 | 48000 | 96000;
@@ -494,7 +560,7 @@ export type Channels = 1 | 2 | 'auto';
 
 export interface GenericConvertOptions {
   format: OutputFormat;
-  bitrate: string | null; // e.g., "128k", "192k", "320k" (null = preserve original, ignored for lossless)
+  bitrate: string | null; // e.g., "128k", "192k", "320k" (null = encoder default, ignored for lossless)
   sampleRate: SampleRate | null; // null = preserve original
   channels: Channels;
 }
@@ -574,7 +640,7 @@ export function formatSupportsCoverArt(format: OutputFormat): boolean {
 // Compatibility guardrails: avoid encoder/decoder failures by only allowing
 // sample rate and channel combinations that are broadly supported in browsers
 // for each output format.
-const FORMAT_CAPABILITIES: Record<
+export const FORMAT_CAPABILITIES: Record<
   OutputFormat,
   { sampleRates: SampleRate[]; channels: Channels[] }
 > = {
@@ -690,13 +756,17 @@ function buildMetadataBlockPicture(
   return btoa(binary);
 }
 
+const IMAGE_EXTENSIONS = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+} as const;
+
+type ImageMimeType = keyof typeof IMAGE_EXTENSIONS;
+
 /**
  * Detect MIME type from image data by checking magic bytes.
  */
-function detectImageMimeType(data: Uint8Array): string {
-  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) {
-    return 'image/jpeg';
-  }
+export function detectImageMimeType(data: Uint8Array): ImageMimeType {
   if (
     data[0] === 0x89 &&
     data[1] === 0x50 &&
@@ -705,7 +775,7 @@ function detectImageMimeType(data: Uint8Array): string {
   ) {
     return 'image/png';
   }
-  // Default to JPEG
+  // JPEG (FF D8 FF) and anything unknown
   return 'image/jpeg';
 }
 
@@ -717,24 +787,26 @@ async function tryExtractCoverArt(
   ff: FFmpeg,
   inputName: string,
 ): Promise<Uint8Array | null> {
-  const coverName = 'extracted_cover.jpg';
+  const coverName = createTempFileName('extracted_cover', 'jpg');
   try {
-    // Try to extract cover art - this will fail silently if none exists
-    await ff.exec(['-i', inputName, '-an', '-vcodec', 'copy', '-y', coverName]);
+    // Exits with a non-zero code when the file has no cover art
+    const exitCode = await ff.exec([
+      '-i',
+      inputName,
+      '-an',
+      '-vcodec',
+      'copy',
+      '-y',
+      coverName,
+    ]);
+    if (exitCode !== 0) return null;
     const data = await ff.readFile(coverName);
-    if (data instanceof Uint8Array && data.length > 0) {
-      return data;
-    }
+    return data instanceof Uint8Array && data.length > 0 ? data : null;
   } catch {
-    // No cover art found, that's fine
+    return null;
   } finally {
-    try {
-      ff.deleteFile(coverName);
-    } catch {
-      // Ignore cleanup errors
-    }
+    await cleanupFiles(ff, [coverName]);
   }
-  return null;
 }
 
 function parseBitrateKbps(bitrate: string): string {
@@ -785,7 +857,7 @@ const INPUT_EXT_TO_OUTPUT_FORMAT: Record<string, OutputFormat> = {
   aif: 'aiff',
 };
 
-export async function convertAudio(
+export function convertAudio(
   input: Uint8Array,
   inputFilename: string,
   options: GenericConvertOptions,
@@ -796,121 +868,107 @@ export async function convertAudio(
   const normalizedBitrate = options.bitrate
     ? parseBitrateKbps(options.bitrate)
     : null;
-
-  const ff = await ensureFFmpegLoaded();
-  const logs = createLogCollector(ff);
-
   const config = FORMAT_CONFIG[options.format];
-  const inputExt = inputFilename.split('.').pop()?.toLowerCase() ?? 'wav';
-  const inputName = `input.${inputExt}`;
   const baseName = outputBaseName ?? inputFilename.replace(/\.[^.]+$/, '');
-  const outName = `${baseName}.${config.ext}`;
 
-  await writeFileCopy(ff, inputName, input);
-
-  // For OGG, try to extract cover art first to embed via METADATA_BLOCK_PICTURE
-  let oggCoverArtBase64: string | null = null;
-  if (options.format === 'ogg') {
-    const coverData = await tryExtractCoverArt(ff, inputName);
-    if (coverData) {
-      const mimeType = detectImageMimeType(coverData);
-      oggCoverArtBase64 = buildMetadataBlockPicture(coverData, mimeType);
-    }
-  }
-
-  const args = ['-i', inputName];
-
-  // Map audio stream
-  args.push('-map', '0:a:0');
-
-  // Cover art handling
-  // OGG uses METADATA_BLOCK_PICTURE (handled separately), not video stream mapping
-  if (config.supportsCoverArt && options.format !== 'ogg') {
-    // Map video stream (cover art) if present - the "?" makes it optional
-    args.push('-map', '0:v?');
-    args.push('-c:v', 'copy');
-    args.push('-disposition:v', 'attached_pic');
-    // Copy metadata from source
-    args.push('-map_metadata', '0');
-  } else if (options.format === 'ogg') {
-    // OGG: strip video stream but copy metadata, we'll add cover via METADATA_BLOCK_PICTURE
-    args.push('-vn');
-    args.push('-map_metadata', '0');
-  } else {
-    // Strip video for formats that don't support cover art (WAV)
-    args.push('-vn');
-  }
-
-  args.push('-c:a', config.codec);
-
-  // Only set sample rate if explicitly provided (null = preserve original)
-  if (options.sampleRate !== null) {
-    args.push('-ar', String(options.sampleRate));
-  }
-
-  // Only set channel count when explicitly requested; "auto" preserves source layout.
-  if (options.channels !== 'auto') {
-    args.push('-ac', String(options.channels));
-  }
-
-  // Vorbis: prefer quality scale for stability across mono/stereo and bitrates
-  if (options.format === 'ogg') {
-    if (normalizedBitrate) {
-      const quality = VORBIS_Q_FOR_BITRATE[normalizedBitrate] ?? 4;
-      args.push('-qscale:a', String(quality));
-    }
-    // If bitrate is null, FFmpeg will use default quality
-
-    // Add cover art via METADATA_BLOCK_PICTURE Vorbis comment
-    if (oggCoverArtBase64) {
-      args.push('-metadata', `METADATA_BLOCK_PICTURE=${oggCoverArtBase64}`);
-    }
-  } else if (!config.lossless && normalizedBitrate) {
-    // Lossy formats: set explicit bitrate only if provided
-    args.push('-b:a', normalizedBitrate);
-  }
-  // If bitrate is null, FFmpeg will use default bitrate for the codec
-
-  // AIFF: enable ID3v2 tags to store cover art
-  if (options.format === 'aiff') {
-    args.push('-write_id3v2', '1');
-  }
-
-  args.push('-y', outName);
-
-  logs.attach();
-  try {
-    await execWithProgress(ff, args, onProgress);
-    const data = await ff.readFile(outName);
-    if (!(data instanceof Uint8Array)) {
-      throw new Error('Unexpected ffmpeg output');
-    }
-    if (data.length === 0) {
-      const logTail = logs.tail().join(' | ');
-      const extra = logTail ? ` Details: ${logTail}` : '';
-      throw new Error(
-        `FFmpeg produced an empty ${options.format.toUpperCase()} file. Try 44.1/48 kHz and a standard bitrate.${extra}`,
-      );
-    }
-    return {
-      data,
-      filename: outName,
-      mime: config.mime,
-    };
-  } catch (error) {
-    const logTail = logs.tail().join(' | ');
-    const extra = logTail ? ` Details: ${logTail}` : '';
-    throw new Error(
-      (error instanceof Error ? error.message : 'Failed to convert audio') +
-        extra,
+  return withFFmpeg(async (ff) => {
+    const inputName = createTempFileName(
+      'convert_input',
+      getSafeExtension(inputFilename, 'bin'),
     );
-  } finally {
-    logs.detach();
-    cleanupFiles(ff, [inputName, outName]);
-  }
+    const outputName = createTempFileName('convert_output', config.ext);
+    try {
+      await ff.writeFile(inputName, input);
+
+      // For OGG, try to extract cover art first to embed via METADATA_BLOCK_PICTURE
+      let oggCoverArtBase64: string | null = null;
+      if (options.format === 'ogg') {
+        const coverData = await tryExtractCoverArt(ff, inputName);
+        if (coverData) {
+          const mimeType = detectImageMimeType(coverData);
+          oggCoverArtBase64 = buildMetadataBlockPicture(coverData, mimeType);
+        }
+      }
+
+      const args = ['-i', inputName];
+
+      // Map audio stream
+      args.push('-map', '0:a:0');
+
+      // Cover art handling
+      // OGG uses METADATA_BLOCK_PICTURE (handled separately), not video stream mapping
+      if (config.supportsCoverArt && options.format !== 'ogg') {
+        // Map video stream (cover art) if present - the "?" makes it optional
+        args.push('-map', '0:v?');
+        args.push('-c:v', 'copy');
+        args.push('-disposition:v', 'attached_pic');
+        // Copy metadata from source
+        args.push('-map_metadata', '0');
+      } else if (options.format === 'ogg') {
+        // OGG: strip video stream but copy metadata, we'll add cover via METADATA_BLOCK_PICTURE
+        args.push('-vn');
+        args.push('-map_metadata', '0');
+      } else {
+        // Strip video for formats that don't support cover art (WAV)
+        args.push('-vn');
+      }
+
+      args.push('-c:a', config.codec);
+
+      // Only set sample rate if explicitly provided (null = preserve original)
+      if (options.sampleRate !== null) {
+        args.push('-ar', String(options.sampleRate));
+      }
+
+      // Only set channel count when explicitly requested; "auto" preserves source layout.
+      if (options.channels !== 'auto') {
+        args.push('-ac', String(options.channels));
+      }
+
+      // Vorbis: prefer quality scale for stability across mono/stereo and bitrates
+      if (options.format === 'ogg') {
+        if (normalizedBitrate) {
+          const quality = VORBIS_Q_FOR_BITRATE[normalizedBitrate] ?? 4;
+          args.push('-qscale:a', String(quality));
+        }
+        // If bitrate is null, FFmpeg will use default quality
+
+        // Add cover art via METADATA_BLOCK_PICTURE Vorbis comment
+        if (oggCoverArtBase64) {
+          args.push('-metadata', `METADATA_BLOCK_PICTURE=${oggCoverArtBase64}`);
+        }
+      } else if (!config.lossless && normalizedBitrate) {
+        // Lossy formats: set explicit bitrate only if provided
+        args.push('-b:a', normalizedBitrate);
+      }
+      // If bitrate is null, FFmpeg will use the encoder's default bitrate
+
+      // AIFF: enable ID3v2 tags to store cover art
+      if (options.format === 'aiff') {
+        args.push('-write_id3v2', '1');
+      }
+
+      args.push('-y', outputName);
+
+      const logs = await execWithProgress(ff, args, onProgress);
+      const data = await readOutputFile(ff, outputName);
+      if (data.length === 0) {
+        throw new Error(
+          `FFmpeg produced an empty ${options.format.toUpperCase()} file. Try 44.1/48 kHz and a standard bitrate.${formatLogDetails(logs)}`,
+        );
+      }
+      return {
+        data,
+        filename: `${baseName}.${config.ext}`,
+        mime: config.mime,
+      };
+    } finally {
+      await cleanupFiles(ff, [inputName, outputName]);
+    }
+  });
 }
 
-export async function convertWavToMp3WithMetadata(
+export function convertWavToMp3WithMetadata(
   wavInput: Uint8Array,
   mp3Source: Uint8Array | undefined,
   options: ConvertOptions = {},
@@ -918,255 +976,211 @@ export async function convertWavToMp3WithMetadata(
   onProgress?: ProgressCallback,
   cover?: Uint8Array,
 ): Promise<ProcessResult> {
-  const ff = await ensureFFmpegLoaded();
+  return withFFmpeg(async (ff) => {
+    const wavName = createTempFileName('retag_wav_input', 'wav');
+    const mp3Name = createTempFileName('retag_wav_source', 'mp3');
+    const coverName = createTempFileName('retag_wav_cover', 'img');
+    const outputName = createTempFileName('retag_wav_output', 'mp3');
+    try {
+      await ff.writeFile(wavName, wavInput);
 
-  const wavName = 'input.wav';
-  const mp3Name = 'source.mp3';
-  const coverName = 'cover.jpg';
-  const outName = outputFilename ?? 'output.mp3';
-  const filesToCleanup = [wavName, outName];
+      // Build ffmpeg arguments based on available inputs
+      const args: string[] = ['-i', wavName];
 
-  await writeFileCopy(ff, wavName, wavInput);
+      if (mp3Source) {
+        await ff.writeFile(mp3Name, mp3Source);
+        args.push('-i', mp3Name);
+      }
 
-  if (mp3Source) {
-    await writeFileCopy(ff, mp3Name, mp3Source);
-    filesToCleanup.push(mp3Name);
-  }
+      // Track which input index the cover is at (for -map)
+      const coverInputIndex = mp3Source ? 2 : 1;
+      if (cover) {
+        await writeFileCopy(ff, coverName, cover);
+        args.push('-i', coverName);
+      }
 
-  if (cover) {
-    await writeFileCopy(ff, coverName, cover);
-    filesToCleanup.push(coverName);
-  }
+      args.push(
+        '-map',
+        '0:a',
+        '-c:a',
+        'libmp3lame',
+        '-b:a',
+        '320k',
+        '-id3v2_version',
+        '3',
+      );
 
-  // Build ffmpeg arguments based on available inputs
-  const args: string[] = ['-i', wavName];
+      // Copy metadata from MP3 source if provided
+      if (mp3Source) {
+        args.push('-map_metadata', '1');
+      }
 
-  if (mp3Source) {
-    args.push('-i', mp3Name);
-  }
+      if (cover) {
+        // Use the provided cover image
+        args.push(
+          '-map',
+          `${coverInputIndex}:v`,
+          '-c:v',
+          'copy',
+          '-metadata:s:v',
+          'title=Album cover',
+          '-metadata:s:v',
+          'comment=Cover (front)',
+        );
+      } else if (mp3Source) {
+        // Use cover from MP3 source if available, without re-encoding it
+        args.push('-map', '1:v?', '-c:v', 'copy');
+      }
 
-  // Track which input index the cover is at (for -map)
-  let coverInputIndex: number | null = null;
-  if (cover) {
-    coverInputIndex = mp3Source ? 2 : 1;
-    args.push('-i', coverName);
-  }
+      args.push(...metadataArgs(options), '-y', outputName);
 
-  args.push(
-    '-map',
-    '0:a',
-    '-c:a',
-    'libmp3lame',
-    '-b:a',
-    '320k',
-    '-id3v2_version',
-    '3',
-  );
-
-  // Copy metadata from MP3 source if provided
-  if (mp3Source) {
-    args.push('-map_metadata', '1');
-  }
-
-  if (cover) {
-    // Use the provided cover image
-    args.push(
-      '-map',
-      `${coverInputIndex}:v`,
-      '-c:v',
-      'copy',
-      '-metadata:s:v',
-      'title=Album cover',
-      '-metadata:s:v',
-      'comment=Cover (front)',
-    );
-  } else if (mp3Source) {
-    // Use cover from MP3 source if available
-    args.push('-map', '1:v?');
-  }
-
-  if (options.title !== undefined) {
-    args.push('-metadata', `title=${options.title}`);
-  }
-  if (options.artist !== undefined) {
-    args.push('-metadata', `artist=${options.artist}`);
-  }
-  if (options.album !== undefined) {
-    args.push('-metadata', `album=${options.album}`);
-  }
-  if (options.year !== undefined) {
-    args.push('-metadata', `date=${options.year}`);
-  }
-  if (options.track !== undefined) {
-    args.push('-metadata', `track=${options.track}`);
-  }
-  if (options.genre !== undefined) {
-    args.push('-metadata', `genre=${options.genre}`);
-  }
-
-  args.push('-y', outName);
-
-  try {
-    await execWithProgress(ff, args, onProgress);
-    const data = await ff.readFile(outName);
-    if (!(data instanceof Uint8Array)) {
-      throw new Error('Unexpected ffmpeg output');
+      await execWithProgress(ff, args, onProgress);
+      return {
+        data: await readOutputFile(ff, outputName),
+        filename: outputFilename ?? 'output.mp3',
+        mime: 'audio/mpeg',
+      };
+    } finally {
+      await cleanupFiles(ff, [wavName, mp3Name, coverName, outputName]);
     }
-    return {
-      data,
-      filename: outName,
-      mime: 'audio/mpeg',
-    };
-  } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : 'Failed to convert WAV to MP3',
-    );
-  } finally {
-    cleanupFiles(ff, filesToCleanup);
-  }
+  });
 }
 
-export async function trimAudio(
+const PASSTHROUGH_EXT_ALIASES: Record<string, string> = {
+  wave: 'wav',
+  mpeg: 'mp3',
+};
+
+export function trimAudio(
   input: Uint8Array,
   inputFilename: string,
   options: TrimOptions,
   outputBaseName?: string,
   onProgress?: ProgressCallback,
 ): Promise<ProcessResult> {
-  const ff = await ensureFFmpegLoaded();
-  const logs = createLogCollector(ff);
-
-  const inputExt = inputFilename.split('.').pop()?.toLowerCase() ?? 'mp3';
-  const sourceFormat = INPUT_EXT_TO_OUTPUT_FORMAT[inputExt];
-  const targetFormat =
-    options.format === 'source' ? sourceFormat : options.format;
-  if (!targetFormat) {
-    throw new Error(
-      `Keeping the original format is not supported for ".${inputExt}" files yet.`,
-    );
-  }
-  const config = FORMAT_CONFIG[targetFormat];
-  const inputName = `input.${inputExt}`;
-  const baseName = outputBaseName ?? inputFilename.replace(/\.[^.]+$/, '');
-  const outputExt = options.format === 'source' ? inputExt : config.ext;
-  const outName = `${baseName}_trimmed.${outputExt}`;
-
-  await writeFileCopy(ff, inputName, input);
-
-  // For OGG, try to extract cover art first to embed via METADATA_BLOCK_PICTURE
-  let oggCoverArtBase64: string | null = null;
-  if (targetFormat === 'ogg' && options.format !== 'source') {
-    const coverData = await tryExtractCoverArt(ff, inputName);
-    if (coverData) {
-      const mimeType = detectImageMimeType(coverData);
-      oggCoverArtBase64 = buildMetadataBlockPicture(coverData, mimeType);
-    }
-  }
-
-  const args: string[] = [];
-
   const duration = options.endTime - options.startTime;
   if (duration <= 0) {
-    throw new Error('Trim end time must be after start time.');
+    return Promise.reject(new Error('Trim end time must be after start time.'));
   }
 
-  // Seek to start position (before input for faster seeking)
-  args.push('-ss', String(options.startTime));
-  args.push('-i', inputName);
-
-  // Duration (end - start)
-  args.push('-t', String(duration));
-
-  // Build filter chain
-  const filters: string[] = [];
-
-  // Silence removal filter if enabled
-  if (options.removeSilence) {
-    // silenceremove filter:
-    // - stop_periods=-1: remove all silence periods
-    // - stop_threshold: amplitude threshold in dB
-    // - stop_duration: minimum duration of silence to remove
-    // - stop_silence: leave some silence (0 = remove completely)
-    const threshold = 10 ** (options.silenceThreshold / 20); // Convert dB to amplitude
-    filters.push(
-      `silenceremove=stop_periods=-1:stop_duration=${options.silenceDuration}:stop_threshold=${threshold}`,
+  const inputExt = getSafeExtension(inputFilename, 'bin');
+  const sourceFormat = INPUT_EXT_TO_OUTPUT_FORMAT[inputExt];
+  const isPassthrough = options.format === 'source' && !options.removeSilence;
+  const targetFormat =
+    options.format === 'source' ? sourceFormat : options.format;
+  // Stream copy works for any container; re-encoding needs a known format.
+  if (!isPassthrough && !targetFormat) {
+    return Promise.reject(
+      new Error(
+        `Removing silence while keeping the original format is not supported for ".${inputExt}" files. Pick an output format instead.`,
+      ),
     );
   }
+  const config = targetFormat ? FORMAT_CONFIG[targetFormat] : null;
+  const baseName = outputBaseName ?? inputFilename.replace(/\.[^.]+$/, '');
+  // Use an extension FFmpeg maps to the right muxer (".wave" isn't one).
+  const outputExt =
+    isPassthrough || !config
+      ? (PASSTHROUGH_EXT_ALIASES[inputExt] ?? inputExt)
+      : config.ext;
 
-  if (filters.length > 0) {
-    args.push('-af', filters.join(','));
-  }
+  return withFFmpeg(async (ff) => {
+    const inputName = createTempFileName('trim_input', inputExt);
+    const outputName = createTempFileName('trim_output', outputExt);
+    try {
+      await ff.writeFile(inputName, input);
 
-  const isPassthrough = options.format === 'source' && filters.length === 0;
+      // For OGG, try to extract cover art first to embed via METADATA_BLOCK_PICTURE
+      let oggCoverArtBase64: string | null = null;
+      if (targetFormat === 'ogg' && options.format !== 'source') {
+        const coverData = await tryExtractCoverArt(ff, inputName);
+        if (coverData) {
+          const mimeType = detectImageMimeType(coverData);
+          oggCoverArtBase64 = buildMetadataBlockPicture(coverData, mimeType);
+        }
+      }
 
-  if (isPassthrough) {
-    // Copy the original audio (and attachments like cover art) without re-encoding
-    args.push('-map_metadata', '0');
-    args.push('-map', '0:a:0');
-    args.push('-map', '0:v?');
-    args.push('-c', 'copy');
-  } else {
-    // Output codec settings
-    args.push('-map', '0:a:0');
-    args.push('-map_metadata', '0');
+      // Seek and limit the input, so filters such as silence removal only
+      // ever see the selected range.
+      const args: string[] = [
+        '-ss',
+        String(options.startTime),
+        '-t',
+        String(duration),
+        '-i',
+        inputName,
+      ];
 
-    // Cover art handling
-    // OGG uses METADATA_BLOCK_PICTURE (handled separately), not video stream mapping
-    if (config.supportsCoverArt && targetFormat !== 'ogg') {
-      // Map video stream (cover art) if present - the "?" makes it optional
-      args.push('-map', '0:v?');
-      args.push('-c:v', 'copy');
-      args.push('-disposition:v', 'attached_pic');
-    } else {
-      // Strip video for OGG (uses METADATA_BLOCK_PICTURE) and WAV (no cover support)
-      args.push('-vn');
+      if (isPassthrough || !config) {
+        // Copy the original audio (and attachments like cover art) without re-encoding
+        args.push('-map_metadata', '0');
+        args.push('-map', '0:a:0');
+        args.push('-map', '0:v?');
+        args.push('-c', 'copy');
+      } else {
+        // Silence removal filter if enabled
+        if (options.removeSilence) {
+          // silenceremove filter:
+          // - stop_periods=-1: remove all silence periods
+          // - stop_threshold: amplitude threshold in dB
+          // - stop_duration: minimum duration of silence to remove
+          const threshold = 10 ** (options.silenceThreshold / 20); // Convert dB to amplitude
+          args.push(
+            '-af',
+            `silenceremove=stop_periods=-1:stop_duration=${options.silenceDuration}:stop_threshold=${threshold}`,
+          );
+        }
+
+        // Output codec settings
+        args.push('-map', '0:a:0');
+        args.push('-map_metadata', '0');
+
+        // Cover art handling
+        // OGG uses METADATA_BLOCK_PICTURE (handled separately), not video stream mapping
+        if (config.supportsCoverArt && targetFormat !== 'ogg') {
+          // Map video stream (cover art) if present - the "?" makes it optional
+          args.push('-map', '0:v?');
+          args.push('-c:v', 'copy');
+          args.push('-disposition:v', 'attached_pic');
+        } else {
+          // Strip video for OGG (uses METADATA_BLOCK_PICTURE) and WAV (no cover support)
+          args.push('-vn');
+        }
+
+        args.push('-c:a', config.codec);
+
+        // Bitrate for lossy formats (also when re-encoding the original format)
+        if (!config.lossless) {
+          args.push('-b:a', options.bitrate);
+        }
+
+        // OGG: add cover art via METADATA_BLOCK_PICTURE Vorbis comment
+        if (oggCoverArtBase64) {
+          args.push('-metadata', `METADATA_BLOCK_PICTURE=${oggCoverArtBase64}`);
+        }
+
+        // AIFF: enable ID3v2 tags to store cover art
+        if (targetFormat === 'aiff') {
+          args.push('-write_id3v2', '1');
+        }
+      }
+
+      args.push('-y', outputName);
+
+      const logs = await execWithProgress(ff, args, onProgress);
+      const data = await readOutputFile(ff, outputName);
+      if (data.length === 0) {
+        throw new Error(
+          `FFmpeg produced an empty trimmed file.${formatLogDetails(logs)}`,
+        );
+      }
+      return {
+        data,
+        filename: `${baseName}_trimmed.${outputExt}`,
+        mime: config?.mime ?? 'application/octet-stream',
+      };
+    } finally {
+      await cleanupFiles(ff, [inputName, outputName]);
     }
-
-    args.push('-c:a', config.codec);
-
-    // Bitrate for lossy formats when explicitly re-encoding to a new format
-    if (!config.lossless && options.format !== 'source') {
-      args.push('-b:a', options.bitrate);
-    }
-
-    // OGG: add cover art via METADATA_BLOCK_PICTURE Vorbis comment
-    if (targetFormat === 'ogg' && oggCoverArtBase64) {
-      args.push('-metadata', `METADATA_BLOCK_PICTURE=${oggCoverArtBase64}`);
-    }
-
-    // AIFF: enable ID3v2 tags to store cover art
-    if (targetFormat === 'aiff') {
-      args.push('-write_id3v2', '1');
-    }
-  }
-
-  args.push('-y', outName);
-
-  logs.attach();
-  try {
-    await execWithProgress(ff, args, onProgress);
-    const data = await ff.readFile(outName);
-    if (!(data instanceof Uint8Array)) {
-      throw new Error('Unexpected ffmpeg output');
-    }
-    if (data.length === 0) {
-      const logTail = logs.tail().join(' | ');
-      const extra = logTail ? ` Details: ${logTail}` : '';
-      throw new Error(`FFmpeg produced an empty trimmed file.${extra}`);
-    }
-    return {
-      data,
-      filename: outName,
-      mime: config.mime,
-    };
-  } catch (error) {
-    const logTail = logs.tail().join(' | ');
-    const extra = logTail ? ` Details: ${logTail}` : '';
-    throw new Error(
-      (error instanceof Error ? error.message : 'Failed to trim audio') + extra,
-    );
-  } finally {
-    logs.detach();
-    cleanupFiles(ff, [inputName, outName]);
-  }
+  });
 }
