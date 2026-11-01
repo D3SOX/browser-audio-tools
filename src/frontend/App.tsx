@@ -7,7 +7,7 @@ import type {
   OutputFormat,
   ProcessOptions,
   ProgressCallback,
-  SampleRate,
+  TrimOptions,
 } from './api';
 import {
   convertAudio,
@@ -15,6 +15,7 @@ import {
   convertWavToMp3,
   extractCover,
   extractCoverBatch,
+  FORMAT_CAPABILITIES,
   processAudio,
   processAudioBatch,
   readMetadataFromFile,
@@ -33,7 +34,7 @@ import { OperationPicker } from './components/OperationPicker';
 import { OutputFilenameSection } from './components/OutputFilenameSection';
 import { RetagSection } from './components/RetagSection';
 import { RetagWavSection } from './components/RetagWavSection';
-import { type TrimOptions, TrimSection } from './components/TrimSection';
+import { TrimSection } from './components/TrimSection';
 import {
   type VisualizerHandle,
   VisualizerSection,
@@ -80,15 +81,6 @@ const defaultGenericConvertOptions: GenericConvertOptions = {
   channels: 'auto',
 };
 
-const SAMPLE_RATES_BY_FORMAT: Record<OutputFormat, SampleRate[]> = {
-  mp3: [44100, 48000],
-  ogg: [44100, 48000, 96000],
-  aac: [44100, 48000, 96000],
-  wav: [44100, 48000, 96000],
-  flac: [44100, 48000, 96000],
-  aiff: [44100, 48000, 96000],
-};
-
 const defaultTrimOptions: TrimOptions = {
   startTime: 0,
   endTime: 0,
@@ -100,6 +92,16 @@ const defaultTrimOptions: TrimOptions = {
 };
 
 const LOSSLESS_FORMATS: OutputFormat[] = ['wav', 'flac', 'aiff'];
+
+const AUDIO_EXTENSIONS =
+  /\.(mp3|mpeg|wav|wave|flac|aiff?|ogg|oga|opus|m4a|aac|wma|webm)$/i;
+const isAudioFile = (file: File) =>
+  file.type.startsWith('audio/') || AUDIO_EXTENSIONS.test(file.name);
+const isWavFile = (file: File) =>
+  /\.wave?$/i.test(file.name) ||
+  ['audio/wav', 'audio/x-wav', 'audio/wave'].includes(file.type);
+const isMp3File = (file: File) =>
+  /\.mp3$/i.test(file.name) || file.type === 'audio/mpeg';
 
 type OperationResult = {
   status: string | null;
@@ -135,27 +137,49 @@ const createEmptyResultsMap = (): Record<Operation, OperationResult> => ({
   visualize: createEmptyResult(),
 });
 
+const resultUrls = (result: OperationResult | null): string[] =>
+  result
+    ? [
+        result.downloadUrl,
+        result.previewUrl,
+        ...(result.batchPreviews ?? []).map((item) => item.url),
+      ].filter((url): url is string => url !== null)
+    : [];
+
+const revokeStaleUrls = (
+  prev: OperationResult,
+  next: OperationResult | null,
+) => {
+  const keep = new Set(resultUrls(next));
+  for (const url of new Set(resultUrls(prev))) {
+    if (!keep.has(url)) URL.revokeObjectURL(url);
+  }
+};
+
 export default function App() {
   const isBrowser = typeof window !== 'undefined';
   const [noiseFiles, setNoiseFiles] = useState<File[]>([]);
   const [coverFiles, setCoverFiles] = useState<File[]>([]);
   const [operation, setOperation] = useState<Operation>('convert');
   const [options, setOptions] = useState<ProcessOptions>(defaultOptions);
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [processing, setProcessing] = useState(false);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-  const [downloadName, setDownloadName] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [resultsByOperation, setResultsByOperation] = useState<
-    Record<Operation, OperationResult>
-  >(createEmptyResultsMap);
-  const currentOperationRef = useRef<Operation>('convert');
+  // The ref is the source of truth so object URLs can be revoked outside of
+  // state updaters; the state mirrors it for rendering.
+  const resultsRef = useRef(createEmptyResultsMap());
+  const [resultsByOperation, setResultsByOperation] = useState(
+    resultsRef.current,
+  );
+  const {
+    status,
+    error,
+    processing,
+    downloadUrl,
+    downloadName,
+    previewUrl,
+    batchPreviews,
+    progress,
+  } = resultsByOperation[operation];
   const visualizerRef = useRef<VisualizerHandle | null>(null);
-  const [batchPreviews, setBatchPreviews] = useState<
-    { name: string; url: string; type: 'audio' | 'image' }[] | null
-  >(null);
 
   // Convert operation state
   const [wavFile, setWavFile] = useState<File | null>(null);
@@ -219,9 +243,6 @@ export default function App() {
   const [loadingDonorMetadata, setLoadingDonorMetadata] = useState(false);
   const [dragOverDonor, setDragOverDonor] = useState(false);
 
-  // Progress state
-  const [progress, setProgress] = useState<number | null>(null);
-
   // Trim operation state
   const [trimFile, setTrimFile] = useState<File | null>(null);
   const [trimOptions, setTrimOptions] =
@@ -255,10 +276,6 @@ export default function App() {
     trimOptions.format !== 'source' &&
     LOSSLESS_FORMATS.includes(trimOptions.format);
 
-  useEffect(() => {
-    currentOperationRef.current = operation;
-  }, [operation]);
-
   // Set initial hash on mount if not already valid
   useEffect(() => {
     if (!isBrowser) return;
@@ -270,49 +287,45 @@ export default function App() {
     }
   }, [isBrowser]);
 
-  const replaceOperationResult = useCallback(
-    (op: Operation, nextResult: OperationResult) => {
-      setResultsByOperation((prev) => {
-        const prevResult = prev[op];
-        if (
-          prevResult?.downloadUrl &&
-          prevResult.downloadUrl !== nextResult.downloadUrl
-        ) {
-          URL.revokeObjectURL(prevResult.downloadUrl);
-        }
-        if (
-          prevResult?.previewUrl &&
-          prevResult.previewUrl !== nextResult.previewUrl &&
-          prevResult.previewUrl !== prevResult.downloadUrl
-        ) {
-          URL.revokeObjectURL(prevResult.previewUrl);
-        }
-        if (prevResult?.batchPreviews) {
-          prevResult.batchPreviews.forEach((item) => {
-            URL.revokeObjectURL(item.url);
-          });
-        }
-        return { ...prev, [op]: nextResult };
-      });
-
-      if (currentOperationRef.current === op) {
-        setStatus(nextResult.status);
-        setError(nextResult.error);
-        setDownloadUrl(nextResult.downloadUrl);
-        setDownloadName(nextResult.downloadName);
-        setPreviewUrl(nextResult.previewUrl);
-        setBatchPreviews(nextResult.batchPreviews ?? null);
-        setProgress(nextResult.progress);
-        setProcessing(nextResult.processing);
-      }
+  const updateResult = useCallback(
+    (op: Operation, update: (prev: OperationResult) => OperationResult) => {
+      const prev = resultsRef.current[op];
+      const next = update(prev);
+      revokeStaleUrls(prev, next);
+      resultsRef.current = { ...resultsRef.current, [op]: next };
+      setResultsByOperation(resultsRef.current);
     },
     [],
   );
 
+  const replaceOperationResult = useCallback(
+    (op: Operation, nextResult: OperationResult) => {
+      updateResult(op, () => nextResult);
+    },
+    [updateResult],
+  );
+
+  const showError = useCallback(
+    (op: Operation, message: string) => {
+      updateResult(op, (prev) => ({ ...prev, status: null, error: message }));
+    },
+    [updateResult],
+  );
+
+  const reportSkippedFiles = useCallback(
+    (op: Operation, skipped: number) => {
+      if (skipped > 0) {
+        showError(
+          op,
+          `Skipped ${skipped} file${skipped === 1 ? '' : 's'} that ${skipped === 1 ? "isn't" : "aren't"} audio.`,
+        );
+      }
+    },
+    [showError],
+  );
+
   const clearResults = useCallback(() => {
     replaceOperationResult(operation, createEmptyResult());
-    setProgress(null);
-    setBatchPreviews(null);
   }, [operation, replaceOperationResult]);
 
   const handleOperationChange = useCallback(
@@ -321,18 +334,8 @@ export default function App() {
       if (isBrowser && window.location.hash.slice(1) !== nextOperation) {
         window.history.replaceState(null, '', `#${nextOperation}`);
       }
-      const savedResult =
-        resultsByOperation[nextOperation] ?? createEmptyResult();
-      setStatus(savedResult.status);
-      setError(savedResult.error);
-      setDownloadUrl(savedResult.downloadUrl);
-      setDownloadName(savedResult.downloadName);
-      setPreviewUrl(savedResult.previewUrl);
-      setBatchPreviews(savedResult.batchPreviews ?? null);
-      setProgress(savedResult.progress);
-      setProcessing(savedResult.processing);
     },
-    [resultsByOperation, isBrowser],
+    [isBrowser],
   );
 
   useEffect(() => {
@@ -442,14 +445,14 @@ export default function App() {
       e.preventDefault();
       setDragOverWav(false);
       const droppedFile = e.dataTransfer.files?.[0];
-      if (
-        droppedFile &&
-        (droppedFile.type === 'audio/wav' || droppedFile.name.endsWith('.wav'))
-      ) {
+      if (!droppedFile) return;
+      if (isWavFile(droppedFile)) {
         handleWavFileSelect(droppedFile);
+      } else {
+        showError('retag-wav', `"${droppedFile.name}" is not a WAV file.`);
       }
     },
-    [handleWavFileSelect],
+    [handleWavFileSelect, showError],
   );
 
   const handleMp3Drop = useCallback(
@@ -457,14 +460,14 @@ export default function App() {
       e.preventDefault();
       setDragOverMp3(false);
       const droppedFile = e.dataTransfer.files?.[0];
-      if (
-        droppedFile &&
-        (droppedFile.type === 'audio/mpeg' || droppedFile.name.endsWith('.mp3'))
-      ) {
+      if (!droppedFile) return;
+      if (isMp3File(droppedFile)) {
         handleMp3SourceSelect(droppedFile);
+      } else {
+        showError('retag-wav', `"${droppedFile.name}" is not an MP3 file.`);
       }
     },
-    [handleMp3SourceSelect],
+    [handleMp3SourceSelect, showError],
   );
 
   const updateMetadata = <K extends keyof ID3Metadata>(
@@ -503,14 +506,14 @@ export default function App() {
     (e: DragEvent) => {
       e.preventDefault();
       setDragOverGeneric(false);
-      const droppedFiles = Array.from(e.dataTransfer.files ?? []).filter((f) =>
-        f.type.startsWith('audio/'),
-      );
+      const allFiles = Array.from(e.dataTransfer.files ?? []);
+      const droppedFiles = allFiles.filter(isAudioFile);
       if (droppedFiles.length > 0) {
         handleGenericConvertFilesSelect(droppedFiles);
       }
+      reportSkippedFiles('convert', allFiles.length - droppedFiles.length);
     },
-    [handleGenericConvertFilesSelect],
+    [handleGenericConvertFilesSelect, reportSkippedFiles],
   );
 
   const updateGenericConvertOption = <K extends keyof GenericConvertOptions>(
@@ -522,7 +525,7 @@ export default function App() {
       // Enforce safe sample rates per format (avoid invalid encodes/playback)
       // Only validate if sampleRate is explicitly set (not null)
       if (next.sampleRate !== null) {
-        const allowedRates = SAMPLE_RATES_BY_FORMAT[next.format];
+        const allowedRates = FORMAT_CAPABILITIES[next.format].sampleRates;
         const defaultRate = allowedRates[0];
         if (defaultRate && !allowedRates.includes(next.sampleRate)) {
           next.sampleRate = defaultRate;
@@ -587,14 +590,14 @@ export default function App() {
       e.preventDefault();
       setDragOverRetag(false);
       const droppedFile = e.dataTransfer.files?.[0];
-      if (
-        droppedFile &&
-        (droppedFile.type === 'audio/mpeg' || droppedFile.name.endsWith('.mp3'))
-      ) {
+      if (!droppedFile) return;
+      if (isMp3File(droppedFile)) {
         handleRetagFileSelect(droppedFile);
+      } else {
+        showError('retag', `"${droppedFile.name}" is not an MP3 file.`);
       }
     },
-    [handleRetagFileSelect],
+    [handleRetagFileSelect, showError],
   );
 
   const updateRetagMetadata = <K extends keyof ID3Metadata>(
@@ -675,14 +678,14 @@ export default function App() {
       e.preventDefault();
       setDragOverDonor(false);
       const droppedFile = e.dataTransfer.files?.[0];
-      if (
-        droppedFile &&
-        (droppedFile.type === 'audio/mpeg' || droppedFile.name.endsWith('.mp3'))
-      ) {
+      if (!droppedFile) return;
+      if (isMp3File(droppedFile)) {
         handleDonorFileSelect(droppedFile);
+      } else {
+        showError('retag', `"${droppedFile.name}" is not an MP3 file.`);
       }
     },
-    [handleDonorFileSelect],
+    [handleDonorFileSelect, showError],
   );
 
   const handleImportDonorFields = useCallback(
@@ -816,11 +819,14 @@ export default function App() {
       e.preventDefault();
       setDragOverTrim(false);
       const droppedFile = e.dataTransfer.files?.[0];
-      if (droppedFile?.type.startsWith('audio/')) {
+      if (!droppedFile) return;
+      if (isAudioFile(droppedFile)) {
         handleTrimFileSelect(droppedFile);
+      } else {
+        showError('trim', `"${droppedFile.name}" is not an audio file.`);
       }
     },
-    [handleTrimFileSelect],
+    [handleTrimFileSelect, showError],
   );
 
   const handleVisualizerFileSelect = useCallback(
@@ -836,11 +842,14 @@ export default function App() {
       e.preventDefault();
       setDragOverVisualizer(false);
       const droppedFile = e.dataTransfer.files?.[0];
-      if (droppedFile?.type.startsWith('audio/')) {
+      if (!droppedFile) return;
+      if (isAudioFile(droppedFile)) {
         handleVisualizerFileSelect(droppedFile);
+      } else {
+        showError('visualize', `"${droppedFile.name}" is not an audio file.`);
       }
     },
-    [handleVisualizerFileSelect],
+    [handleVisualizerFileSelect, showError],
   );
 
   const handleNoiseFilesSelect = useCallback(
@@ -872,9 +881,8 @@ export default function App() {
     (e: DragEvent) => {
       e.preventDefault();
       setDragOver(false);
-      const droppedFiles = Array.from(e.dataTransfer.files ?? []).filter((f) =>
-        f.type.startsWith('audio/'),
-      );
+      const allFiles = Array.from(e.dataTransfer.files ?? []);
+      const droppedFiles = allFiles.filter(isAudioFile);
       if (droppedFiles.length > 0) {
         if (operation === 'noise') {
           handleNoiseFilesSelect(droppedFiles);
@@ -882,8 +890,14 @@ export default function App() {
           handleCoverFilesSelect(droppedFiles);
         }
       }
+      reportSkippedFiles(operation, allFiles.length - droppedFiles.length);
     },
-    [handleNoiseFilesSelect, handleCoverFilesSelect, operation],
+    [
+      handleNoiseFilesSelect,
+      handleCoverFilesSelect,
+      operation,
+      reportSkippedFiles,
+    ],
   );
 
   const handleDragOver = useCallback((e: DragEvent) => {
@@ -908,11 +922,6 @@ export default function App() {
     mp3SourceFileRequestIdRef.current += 1;
     retagFileRequestIdRef.current += 1;
     retagDonorFileRequestIdRef.current += 1;
-    if (batchPreviews) {
-      batchPreviews.forEach((item) => {
-        URL.revokeObjectURL(item.url);
-      });
-    }
     setNoiseFiles([]);
     setCoverFiles([]);
     setWavFile(null);
@@ -952,25 +961,13 @@ export default function App() {
     }
     setRetagCover(null);
     setRetagCoverPreviewUrl(null);
-    setResultsByOperation((prev) => {
-      Object.values(prev).forEach((result) => {
-        if (result.downloadUrl) URL.revokeObjectURL(result.downloadUrl);
-        if (result.previewUrl && result.previewUrl !== result.downloadUrl)
-          URL.revokeObjectURL(result.previewUrl);
-      });
-      return createEmptyResultsMap();
-    });
+    for (const result of Object.values(resultsRef.current)) {
+      revokeStaleUrls(result, null);
+    }
+    resultsRef.current = createEmptyResultsMap();
+    setResultsByOperation(resultsRef.current);
     resetOutputFilename();
-    setStatus(null);
-    setError(null);
-    setDownloadUrl(null);
-    setDownloadName(null);
-    setPreviewUrl(null);
-    setBatchPreviews(null);
-    setProgress(null);
-    setProcessing(false);
   }, [
-    batchPreviews,
     convertCoverPreviewUrl,
     retagCoverPreviewUrl,
     retagDonorCoverPreviewUrl,
@@ -982,49 +979,45 @@ export default function App() {
     const activeOperation = operation;
     if (activeOperation === 'retag-wav') {
       if (!wavFile) {
-        setError('Please choose a WAV file.');
+        showError(activeOperation, 'Please choose a WAV file.');
         return;
       }
     } else if (activeOperation === 'convert') {
       if (genericConvertFiles.length === 0) {
-        setError('Please choose an audio file to convert.');
+        showError(activeOperation, 'Please choose an audio file to convert.');
         return;
       }
     } else if (activeOperation === 'retag') {
       if (!retagFile) {
-        setError('Please choose an MP3 file to retag.');
+        showError(activeOperation, 'Please choose an MP3 file to retag.');
         return;
       }
     } else if (activeOperation === 'trim') {
       if (!trimFile) {
-        setError('Please choose an audio file to trim.');
+        showError(activeOperation, 'Please choose an audio file to trim.');
         return;
       }
       if (trimOptions.startTime >= trimOptions.endTime) {
-        setError('Start time must be before end time.');
+        showError(activeOperation, 'Start time must be before end time.');
         return;
       }
     } else if (activeOperation === 'visualize') {
       if (!visualizerFile) {
-        setError('Please choose an audio file to visualize.');
+        showError(activeOperation, 'Please choose an audio file to visualize.');
         return;
       }
     } else if (activeOperation === 'noise') {
       if (noiseFiles.length === 0) {
-        setError('Please choose an audio file.');
+        showError(activeOperation, 'Please choose an audio file.');
         return;
       }
     } else if (activeOperation === 'cover') {
       if (coverFiles.length === 0) {
-        setError('Please choose an audio file.');
+        showError(activeOperation, 'Please choose an audio file.');
         return;
       }
     }
 
-    setProcessing(true);
-    setError(null);
-    setStatus('Processing...');
-    setProgress(0);
     replaceOperationResult(activeOperation, {
       ...createEmptyResult(),
       status: 'Processing...',
@@ -1033,14 +1026,10 @@ export default function App() {
     });
 
     const onProgress: ProgressCallback = ({ percent }) => {
-      setProgress(percent);
-      setResultsByOperation((prev) => ({
+      updateResult(activeOperation, (prev) => ({
         ...prev,
-        [activeOperation]: {
-          ...prev[activeOperation],
-          progress: percent,
-          processing: true,
-        },
+        progress: percent,
+        processing: true,
       }));
     };
 
@@ -1049,16 +1038,11 @@ export default function App() {
       currentFile,
       totalFiles,
     }) => {
-      setProgress(percent);
-      setStatus(`Processing file ${currentFile} of ${totalFiles}...`);
-      setResultsByOperation((prev) => ({
+      updateResult(activeOperation, (prev) => ({
         ...prev,
-        [activeOperation]: {
-          ...prev[activeOperation],
-          progress: percent,
-          status: `Processing file ${currentFile} of ${totalFiles}...`,
-          processing: true,
-        },
+        progress: percent,
+        status: `Processing file ${currentFile} of ${totalFiles}...`,
+        processing: true,
       }));
     };
 
@@ -1179,7 +1163,7 @@ export default function App() {
         );
         const bitrateInfo = isLossless
           ? 'lossless'
-          : (genericConvertOptions.bitrate ?? 'original');
+          : (genericConvertOptions.bitrate ?? 'encoder default bitrate');
 
         if (genericConvertFiles.length === 1) {
           const [singleFile] = genericConvertFiles;
@@ -1281,7 +1265,7 @@ export default function App() {
         if (!visualizerRef.current) {
           throw new Error('Visualizer not ready');
         }
-        setProgress(50);
+        onProgress({ percent: 50 });
         const result = await visualizerRef.current.exportToPng();
         const url = URL.createObjectURL(result.blob);
         replaceOperationResult(activeOperation, {
@@ -1393,7 +1377,7 @@ export default function App() {
           options={genericConvertOptions}
           isLosslessFormat={isLosslessFormat}
           sampleRateOptions={
-            SAMPLE_RATES_BY_FORMAT[genericConvertOptions.format]
+            FORMAT_CAPABILITIES[genericConvertOptions.format].sampleRates
           }
           onDrop={handleGenericConvertDrop}
           onDragOver={(e) => {
@@ -1516,7 +1500,7 @@ export default function App() {
             Cover extraction
           </h2>
           <p className="hint">
-            We will extract the embedded cover as a JPEG if present.
+            We will extract the embedded cover (JPEG or PNG) if present.
           </p>
         </section>
       </div>

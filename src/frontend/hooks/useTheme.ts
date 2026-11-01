@@ -42,7 +42,6 @@ export function useTheme() {
 
   useEffect(() => {
     if (!isBrowser || theme !== 'system') return;
-    if (theme !== 'system') return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = () => {
       document.documentElement.setAttribute(
