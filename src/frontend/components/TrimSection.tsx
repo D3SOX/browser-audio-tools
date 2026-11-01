@@ -79,7 +79,7 @@ export function TrimSection({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
-  const regionsRef = useRef<RegionsPlugin | null>(null);
+  const regionsRef = useRef<InstanceType<typeof RegionsPlugin> | null>(null);
   const optionsRef = useRef(options);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
