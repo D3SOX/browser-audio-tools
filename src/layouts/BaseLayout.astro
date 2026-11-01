@@ -43,13 +43,6 @@ const ogImage =
         doc.setAttribute('data-theme', resolvedTheme);
         // Share with React hooks to avoid re-render mismatch
         window.__INITIAL_THEME__ = theme;
-
-        const storedConsent = localStorage.getItem('analytics-consent');
-        if (storedConsent === 'true') {
-          window.__INITIAL_CONSENT__ = true;
-        } else if (storedConsent === 'false') {
-          window.__INITIAL_CONSENT__ = false;
-        }
       })();
     </script>
     <meta name="color-scheme" content="light dark" />
