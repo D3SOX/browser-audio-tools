@@ -14,7 +14,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@astrojs/react": "^7.1.1",
-    "@astrojs/vercel": "^11.0.17",
+    "@astrojs/vercel": "^11.0.20",
     "@biomejs/biome": "^2.6.4",
     "@types/bun": "^1.4.4",
     "@types/dom-view-transitions": "^1.0.6",
@@ -28,7 +28,7 @@
     "fflate": "^0.8.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "wavesurfer.js": "^8.0.4"
+    "wavesurfer.js": "^8.0.5"
   },
   "engines": {
     "node": "24.x"
